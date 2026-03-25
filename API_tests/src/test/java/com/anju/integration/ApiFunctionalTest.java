@@ -10,6 +10,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.MethodOrderer;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
@@ -342,5 +343,72 @@ public class ApiFunctionalTest {
         .then()
             .statusCode(403)
             .body("code", equalTo(4034));
+    }
+
+    @Test
+    @Order(11)
+    public void testFinanceCreate_withInvalidSecondaryPassword_returns403() {
+        String transactionNo = "TX-SP-" + System.currentTimeMillis();
+        String payload = "{" +
+                "\"transactionNumber\":\"" + transactionNo + "\"," +
+                "\"amount\":45.00," +
+                "\"type\":\"PAYMENT\"," +
+                "\"currency\":\"USD\"" +
+                "}";
+
+        given()
+            .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+            .header("X-Secondary-Password", "WrongSecondary123")
+            .contentType(ContentType.JSON)
+            .body(payload)
+        .when()
+            .post("/finance")
+        .then()
+            .statusCode(403)
+            .body("code", equalTo(4033));
+    }
+
+    @Test
+    @Order(12)
+    public void testPropertyComplianceReview_withInvalidSecondaryPassword_returns403() {
+        String propertyCode = "PROP-SP-" + System.currentTimeMillis();
+        LocalDateTime startDate = LocalDateTime.now().plusDays(5);
+        LocalDateTime endDate = startDate.plusDays(30);
+
+        String createPropertyPayload = "{" +
+                "\"code\":\"" + propertyCode + "\"," +
+                "\"status\":\"AVAILABLE\"," +
+                "\"rent\":1000.00," +
+                "\"deposit\":2000.00," +
+                "\"startDate\":\"" + startDate + "\"," +
+                "\"endDate\":\"" + endDate + "\"" +
+                "}";
+
+        Long propertyId = given()
+            .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+            .contentType(ContentType.JSON)
+            .body(createPropertyPayload)
+        .when()
+            .post("/api/properties")
+        .then()
+            .statusCode(200)
+            .body("code", equalTo(0))
+            .extract().response().jsonPath().getLong("data.id");
+
+        String reviewPayload = "{" +
+                "\"complianceStatus\":\"APPROVED\"," +
+                "\"comment\":\"secondary password check\"" +
+                "}";
+
+        given()
+            .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+            .header("X-Secondary-Password", "WrongSecondary123")
+            .contentType(ContentType.JSON)
+            .body(reviewPayload)
+        .when()
+            .patch("/api/properties/" + propertyId + "/compliance-review")
+        .then()
+            .statusCode(403)
+            .body("code", equalTo(4033));
     }
 }

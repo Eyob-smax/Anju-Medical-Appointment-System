@@ -7,6 +7,8 @@ import com.anju.domain.auth.AuthService;
 import com.anju.domain.auth.CurrentUserService;
 import com.anju.domain.finance.dto.ExceptionMarkRequest;
 import com.anju.domain.finance.dto.InvoiceIssueRequest;
+import com.anju.domain.finance.dto.BookkeepingImportRequest;
+import com.anju.domain.finance.dto.BookkeepingImportResponse;
 import com.anju.domain.finance.dto.RefundRequest;
 import com.anju.domain.finance.dto.SettlementRequest;
 import com.anju.domain.finance.dto.TransactionRequest;
@@ -49,6 +51,13 @@ public class TransactionController {
             @Valid @RequestBody TransactionRequest request,
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
         return Result.success(transactionService.recordTransaction(request, idempotencyKey));
+    }
+
+    @PostMapping("/import/bookkeeping")
+    @PreAuthorize("hasAnyRole('ADMIN','FINANCE')")
+    @Operation(summary = "Import bookkeeping rows", description = "Imports bookkeeping rows with field mapping, type validation, and idempotency-safe writes.")
+    public Result<BookkeepingImportResponse> importBookkeeping(@Valid @RequestBody BookkeepingImportRequest request) {
+        return Result.success(transactionService.importBookkeeping(request));
     }
     
     @Auditable(module = "FINANCE", action = "Create transaction")

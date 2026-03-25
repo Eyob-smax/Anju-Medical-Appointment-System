@@ -3,6 +3,8 @@ package com.anju.domain.finance;
 import com.anju.common.BusinessException;
 import com.anju.domain.auth.CurrentUserService;
 import com.anju.domain.auth.User;
+import com.anju.domain.finance.dto.BookkeepingImportRequest;
+import com.anju.domain.finance.dto.BookkeepingImportResponse;
 import com.anju.domain.finance.dto.TransactionRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,12 +13,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -121,5 +126,53 @@ class TransactionServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> transactionService.createRefund("TX-REF-1", request));
         assertEquals(4008, ex.getCode());
+    }
+
+    @Test
+    void importBookkeepingProcessesValidRowsAndCollectsErrors() {
+        BookkeepingImportRequest request = new BookkeepingImportRequest();
+        request.setFieldMapping(Map.of(
+                "transactionNumber", "tx_no",
+                "amount", "amt",
+                "type", "kind"
+        ));
+        request.setIdempotencyKeyPrefix("batch-1");
+        request.setRows(List.of(
+                Map.of("tx_no", "TX-900", "amt", "10.50", "kind", "PAYMENT", "currency", "USD"),
+                Map.of("tx_no", "TX-901", "amt", "not-number", "kind", "PAYMENT")
+        ));
+
+        when(transactionRepository.findByIdempotencyKey("batch-1:TX-900")).thenReturn(Optional.empty());
+        when(transactionRepository.existsByTransactionNo("TX-900")).thenReturn(false);
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        BookkeepingImportResponse result = transactionService.importBookkeeping(request);
+
+        assertEquals(2, result.getTotalRows());
+        assertEquals(1, result.getSuccessCount());
+        assertEquals(1, result.getFailureCount());
+        assertEquals("TX-900", result.getImportedTransactionNumbers().get(0));
+        assertEquals(2, result.getErrors().get(0).getRowNumber());
+    }
+
+    @Test
+    void importBookkeepingParsesOccurredAtIsoDate() {
+        BookkeepingImportRequest request = new BookkeepingImportRequest();
+        request.setRows(List.of(Map.of(
+                "transactionNumber", "TX-902",
+                "amount", "20.00",
+                "type", "PAYMENT",
+                "occurredAt", "2026-03-25T09:30:00"
+        )));
+
+        when(transactionRepository.findByIdempotencyKey("import-bookkeeping:TX-902")).thenReturn(Optional.empty());
+        when(transactionRepository.existsByTransactionNo("TX-902")).thenReturn(false);
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        BookkeepingImportResponse result = transactionService.importBookkeeping(request);
+
+        assertEquals(1, result.getSuccessCount());
+        assertEquals(0, result.getFailureCount());
+        verify(transactionRepository, atLeastOnce()).save(any(Transaction.class));
     }
 }

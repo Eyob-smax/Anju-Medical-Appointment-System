@@ -67,7 +67,7 @@ public class GlobalExceptionHandler {
             return HttpStatus.FORBIDDEN;
         }
         if (code >= 4010 && code < 4030) {
-            return HttpStatus.UNAUTHORIZED;
+            return HttpStatus.BAD_REQUEST;
         }
         return HttpStatus.BAD_REQUEST;
     }

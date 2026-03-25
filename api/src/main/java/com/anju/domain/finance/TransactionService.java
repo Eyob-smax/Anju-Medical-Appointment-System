@@ -4,6 +4,9 @@ import com.anju.common.BusinessException;
 import com.anju.domain.auth.CurrentUserService;
 import com.anju.domain.auth.User;
 import com.anju.domain.finance.dto.InvoiceIssueRequest;
+import com.anju.domain.finance.dto.BookkeepingImportRequest;
+import com.anju.domain.finance.dto.BookkeepingImportResponse;
+import com.anju.domain.finance.dto.BookkeepingImportError;
 import com.anju.domain.finance.dto.RefundRequest;
 import com.anju.domain.finance.dto.SettlementRequest;
 import com.anju.domain.finance.dto.TransactionRequest;
@@ -14,6 +17,8 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +27,9 @@ import java.util.concurrent.ThreadLocalRandom;
 @Service
 @Transactional
 public class TransactionService {
+
+    private static final String DEFAULT_IMPORT_IDEMPOTENCY_PREFIX = "import-bookkeeping";
+    private static final java.util.Set<String> ALLOWED_IMPORT_TYPES = java.util.Set.of("PAYMENT", "REFUND");
 
     private final TransactionRepository transactionRepository;
     private final CurrentUserService currentUserService;
@@ -68,6 +76,50 @@ public class TransactionService {
         transaction.setRemark(request.getRemark());
         transaction.setOccurredAt(LocalDateTime.now());
         return transactionRepository.save(transaction);
+    }
+
+    public BookkeepingImportResponse importBookkeeping(BookkeepingImportRequest request) {
+        BookkeepingImportResponse response = new BookkeepingImportResponse();
+        response.setTotalRows(request.getRows().size());
+
+        List<String> importedNumbers = new ArrayList<>();
+        List<BookkeepingImportError> errors = new ArrayList<>();
+
+        String keyPrefix = StringUtils.hasText(request.getIdempotencyKeyPrefix())
+                ? request.getIdempotencyKeyPrefix().trim()
+                : DEFAULT_IMPORT_IDEMPOTENCY_PREFIX;
+
+        int rowNumber = 0;
+        for (Map<String, String> row : request.getRows()) {
+            rowNumber++;
+            try {
+                TransactionRequest transactionRequest = toTransactionRequest(request.getFieldMapping(), row);
+                String idempotencyKey = keyPrefix + ":" + transactionRequest.getTransactionNumber();
+                Transaction stored = recordTransaction(transactionRequest, idempotencyKey);
+
+                String occurredAtText = getMappedValue(request.getFieldMapping(), row, "occurredAt");
+                if (StringUtils.hasText(occurredAtText)) {
+                    try {
+                        stored.setOccurredAt(LocalDateTime.parse(occurredAtText.trim()));
+                        transactionRepository.save(stored);
+                    } catch (DateTimeParseException ex) {
+                        throw new IllegalArgumentException("occurredAt must be ISO-8601 datetime (example: 2026-03-25T10:15:30)");
+                    }
+                }
+
+                importedNumbers.add(stored.getTransactionNo());
+            } catch (BusinessException ex) {
+                errors.add(new BookkeepingImportError(rowNumber, "code=" + ex.getCode() + ", message=" + ex.getMessage()));
+            } catch (IllegalArgumentException ex) {
+                errors.add(new BookkeepingImportError(rowNumber, ex.getMessage()));
+            }
+        }
+
+        response.setImportedTransactionNumbers(importedNumbers);
+        response.setErrors(errors);
+        response.setSuccessCount(importedNumbers.size());
+        response.setFailureCount(errors.size());
+        return response;
     }
 
     public Transaction getTransactionByNo(String transactionNo) {
@@ -237,5 +289,94 @@ public class TransactionService {
             }
         }
         throw new BusinessException(5001, "Unable to generate transaction number.");
+    }
+
+    private TransactionRequest toTransactionRequest(Map<String, String> fieldMapping, Map<String, String> row) {
+        TransactionRequest request = new TransactionRequest();
+
+        String transactionNumber = requireMappedValue(fieldMapping, row, "transactionNumber");
+        String amountText = requireMappedValue(fieldMapping, row, "amount");
+        String type = requireMappedValue(fieldMapping, row, "type").toUpperCase();
+
+        if (!ALLOWED_IMPORT_TYPES.contains(type)) {
+            throw new IllegalArgumentException("type must be PAYMENT or REFUND");
+        }
+
+        BigDecimal amount;
+        try {
+            amount = new BigDecimal(amountText.trim());
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("amount must be a valid decimal number");
+        }
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("amount must be greater than 0");
+        }
+
+        request.setTransactionNumber(transactionNumber.trim());
+        request.setAmount(amount);
+        request.setType(type);
+
+        String appointmentIdText = getMappedValue(fieldMapping, row, "appointmentId");
+        if (StringUtils.hasText(appointmentIdText)) {
+            request.setAppointmentId(parsePositiveLong("appointmentId", appointmentIdText));
+        }
+
+        String payerIdText = getMappedValue(fieldMapping, row, "payerId");
+        if (StringUtils.hasText(payerIdText)) {
+            request.setPayerId(parsePositiveLong("payerId", payerIdText));
+        }
+
+        String currency = getMappedValue(fieldMapping, row, "currency");
+        if (StringUtils.hasText(currency)) {
+            request.setCurrency(currency.trim());
+        }
+
+        String channel = getMappedValue(fieldMapping, row, "channel");
+        if (StringUtils.hasText(channel)) {
+            request.setChannel(channel.trim());
+        }
+
+        String remark = getMappedValue(fieldMapping, row, "remark");
+        if (StringUtils.hasText(remark)) {
+            request.setRemark(remark.trim());
+        }
+
+        String refundable = getMappedValue(fieldMapping, row, "refundable");
+        if (StringUtils.hasText(refundable)) {
+            if (!"true".equalsIgnoreCase(refundable.trim()) && !"false".equalsIgnoreCase(refundable.trim())) {
+                throw new IllegalArgumentException("refundable must be true or false");
+            }
+            request.setRefundable(Boolean.parseBoolean(refundable.trim()));
+        }
+
+        return request;
+    }
+
+    private String requireMappedValue(Map<String, String> fieldMapping, Map<String, String> row, String canonicalField) {
+        String value = getMappedValue(fieldMapping, row, canonicalField);
+        if (!StringUtils.hasText(value)) {
+            throw new IllegalArgumentException(canonicalField + " is required");
+        }
+        return value;
+    }
+
+    private String getMappedValue(Map<String, String> fieldMapping, Map<String, String> row, String canonicalField) {
+        String sourceField = canonicalField;
+        if (fieldMapping != null && StringUtils.hasText(fieldMapping.get(canonicalField))) {
+            sourceField = fieldMapping.get(canonicalField).trim();
+        }
+        return row.get(sourceField);
+    }
+
+    private Long parsePositiveLong(String name, String value) {
+        try {
+            long parsed = Long.parseLong(value.trim());
+            if (parsed <= 0) {
+                throw new IllegalArgumentException(name + " must be a positive integer");
+            }
+            return parsed;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(name + " must be a positive integer");
+        }
     }
 }
