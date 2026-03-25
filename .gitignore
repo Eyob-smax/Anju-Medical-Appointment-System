@@ -1,0 +1,9 @@
+# Ignore Maven local repository
+.m2/
+.env
+.env.*
+!.env.example
+node_modules/
+.venv/
+__pycache__/
+#unnecessary-thing/
