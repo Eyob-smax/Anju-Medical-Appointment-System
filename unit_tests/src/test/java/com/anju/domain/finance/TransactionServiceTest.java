@@ -17,6 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -80,5 +82,44 @@ class TransactionServiceTest {
         Transaction result = transactionService.recordTransaction(request);
         assertEquals("SUCCESS", result.getStatus());
         assertEquals("USD", result.getCurrency());
+    }
+
+    @Test
+    void recordTransactionWithIdempotencyKeyReturnsExistingTransaction() {
+        Transaction existing = new Transaction();
+        existing.setTransactionNo("TX-301");
+        existing.setPayerId(1L);
+
+        when(transactionRepository.findByIdempotencyKey("idem-1")).thenReturn(Optional.of(existing));
+
+        TransactionRequest request = new TransactionRequest();
+        request.setTransactionNumber("TX-NEW");
+        request.setAmount(new BigDecimal("10.00"));
+        request.setType("PAYMENT");
+
+        Transaction result = transactionService.recordTransaction(request, "idem-1");
+        assertEquals("TX-301", result.getTransactionNo());
+        verify(transactionRepository, never()).save(any(Transaction.class));
+    }
+
+    @Test
+    void createRefundRejectsNonRefundableTransaction() {
+        Transaction original = new Transaction();
+        original.setTransactionNo("TX-REF-1");
+        original.setType("PAYMENT");
+        original.setStatus("SUCCESS");
+        original.setRefundable(false);
+        original.setAmount(new BigDecimal("100.00"));
+        original.setPayerId(1L);
+
+        when(transactionRepository.findByTransactionNo("TX-REF-1")).thenReturn(Optional.of(original));
+
+        com.anju.domain.finance.dto.RefundRequest request = new com.anju.domain.finance.dto.RefundRequest();
+        request.setAmount(new BigDecimal("10.00"));
+        request.setReason("manual check");
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> transactionService.createRefund("TX-REF-1", request));
+        assertEquals(4008, ex.getCode());
     }
 }

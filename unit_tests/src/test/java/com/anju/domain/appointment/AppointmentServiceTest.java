@@ -4,6 +4,7 @@ import com.anju.common.BusinessException;
 import com.anju.domain.auth.CurrentUserService;
 import com.anju.domain.auth.User;
 import com.anju.domain.appointment.dto.RescheduleAppointmentRequest;
+import com.anju.domain.appointment.dto.CreateAppointmentRequest;
 import com.anju.domain.property.PropertyRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -142,5 +143,26 @@ class AppointmentServiceTest {
         assertEquals("RESCHEDULED", result.getStatus());
         assertEquals(newStartTime, result.getStartTime());
         verify(appointmentRepository).save(any(Appointment.class));
+    }
+
+    @Test
+    void testCreate_withIdempotencyKey_returnsExistingAppointment() {
+        Appointment existing = new Appointment();
+        existing.setId(99L);
+        existing.setStaffId(10L);
+        existing.setNumber("APPT-EXISTING");
+
+        when(appointmentRepository.findByIdempotencyKey("idem-appointment")).thenReturn(Optional.of(existing));
+
+        CreateAppointmentRequest request = new CreateAppointmentRequest();
+        request.setStaffId(10L);
+        request.setResourceId(20L);
+        request.setStartTime(LocalDateTime.now().plusDays(2));
+        request.setEndTime(LocalDateTime.now().plusDays(2).plusMinutes(30));
+
+        Appointment result = appointmentService.create(request, "idem-appointment");
+
+        assertEquals(99L, result.getId());
+        verify(appointmentRepository, never()).save(any(Appointment.class));
     }
 }

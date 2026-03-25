@@ -2,17 +2,24 @@ package com.anju.integration;
 
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
+import io.restassured.response.Response;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.MethodOrderer;
+
+import java.time.LocalDate;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class ApiFunctionalTest {
 
     private static String adminUsername;
     private static final String ADMIN_PASSWORD = "Admin1234";
+    private static final String ADMIN_SECONDARY_PASSWORD = "Admin5678";
     private static String staffUsername;
     private static final String STAFF_PASSWORD = "Staff1234";
 
@@ -32,7 +39,8 @@ public class ApiFunctionalTest {
                 "\"username\":\"" + adminUsername + "\"," +
                 "\"password\":\"" + ADMIN_PASSWORD + "\"," +
                 "\"displayName\":\"API Test Admin\"," +
-                "\"role\":\"ADMIN\"" +
+            "\"role\":\"ADMIN\"," +
+            "\"secondaryPassword\":\"" + ADMIN_SECONDARY_PASSWORD + "\"" +
                 "}";
 
         given()
@@ -106,5 +114,230 @@ public class ApiFunctionalTest {
                 .get("/finance")
             .then()
                 .statusCode(403);
+    }
+
+    @Test
+    @Order(5)
+    public void testFinanceBookkeeping_idempotencyReplayReturnsSameTransaction() {
+        String idempotencyKey = "idem-fin-" + System.currentTimeMillis();
+        String transactionNo = "TX-IDEM-" + System.currentTimeMillis();
+
+        String payload = "{" +
+                "\"transactionNumber\":\"" + transactionNo + "\"," +
+                "\"amount\":120.50," +
+                "\"type\":\"PAYMENT\"," +
+                "\"currency\":\"USD\"," +
+                "\"remark\":\"idem-check\"" +
+                "}";
+
+        Response first = given()
+                .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+                .header("X-Idempotency-Key", idempotencyKey)
+                .contentType(ContentType.JSON)
+                .body(payload)
+            .when()
+                .post("/finance/bookkeeping")
+            .then()
+                .statusCode(200)
+                .body("code", equalTo(0))
+                .extract().response();
+
+        String firstTransactionNo = first.jsonPath().getString("data.transactionNo");
+
+        Response second = given()
+                .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+                .header("X-Idempotency-Key", idempotencyKey)
+                .contentType(ContentType.JSON)
+                .body(payload)
+            .when()
+                .post("/finance/bookkeeping")
+            .then()
+                .statusCode(200)
+                .body("code", equalTo(0))
+                .extract().response();
+
+        second.then().body("data.transactionNo", equalTo(firstTransactionNo));
+    }
+
+    @Test
+    @Order(6)
+    public void testFinanceExceptionAndStatementExportFlows() {
+        String transactionNo = "TX-EXC-" + System.currentTimeMillis();
+
+        String createPayload = "{" +
+                "\"transactionNumber\":\"" + transactionNo + "\"," +
+                "\"amount\":88.25," +
+                "\"type\":\"PAYMENT\"," +
+                "\"currency\":\"USD\"," +
+                "\"remark\":\"exception-flow\"" +
+                "}";
+
+        given()
+            .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+            .contentType(ContentType.JSON)
+            .body(createPayload)
+        .when()
+            .post("/finance/bookkeeping")
+        .then()
+            .statusCode(200)
+            .body("code", equalTo(0));
+
+        String markExceptionPayload = "{" +
+                "\"reason\":\"manual reconciliation mismatch\"" +
+                "}";
+
+        given()
+            .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+            .contentType(ContentType.JSON)
+            .body(markExceptionPayload)
+        .when()
+            .post("/finance/" + transactionNo + "/exception")
+        .then()
+            .statusCode(200)
+            .body("code", equalTo(0))
+            .body("data.exceptionFlag", equalTo(true));
+
+        String today = LocalDate.now().toString();
+        given()
+            .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+            .queryParam("date", today)
+        .when()
+            .get("/finance/statements/daily")
+        .then()
+            .statusCode(200)
+            .body("code", equalTo(0))
+            .body("data.exceptionCount", greaterThanOrEqualTo(1));
+
+        given()
+            .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+            .queryParam("date", today)
+        .when()
+            .get("/finance/statements/daily/export")
+        .then()
+            .statusCode(200)
+            .header("Content-Disposition", containsString("statement-" + today + ".csv"))
+            .body(containsString("exceptionCount"));
+    }
+
+    @Test
+    @Order(7)
+    public void testAppointmentGetById_notFoundReturns404() {
+        given()
+            .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+        .when()
+            .get("/appointment/999999999")
+        .then()
+            .statusCode(404)
+            .body("code", equalTo(4042));
+    }
+
+    @Test
+    @Order(8)
+    public void testFinanceGetByTransactionNo_notFoundReturns404() {
+        given()
+            .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+        .when()
+            .get("/finance/TX-NOT-FOUND")
+        .then()
+            .statusCode(404)
+            .body("code", equalTo(4040));
+    }
+
+    @Test
+    @Order(9)
+    public void testFinanceMarkException_repeatReturns409() {
+        String transactionNo = "TX-EXC-REPEAT-" + System.currentTimeMillis();
+        String createPayload = "{" +
+                "\"transactionNumber\":\"" + transactionNo + "\"," +
+                "\"amount\":55.00," +
+                "\"type\":\"PAYMENT\"," +
+                "\"currency\":\"USD\"," +
+                "\"remark\":\"repeat-exception\"" +
+                "}";
+
+        given()
+            .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+            .contentType(ContentType.JSON)
+            .body(createPayload)
+        .when()
+            .post("/finance/bookkeeping")
+        .then()
+            .statusCode(200)
+            .body("code", equalTo(0));
+
+        String exceptionPayload = "{" +
+                "\"reason\":\"first mark\"" +
+                "}";
+
+        given()
+            .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+            .contentType(ContentType.JSON)
+            .body(exceptionPayload)
+        .when()
+            .post("/finance/" + transactionNo + "/exception")
+        .then()
+            .statusCode(200)
+            .body("code", equalTo(0));
+
+        given()
+            .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+            .contentType(ContentType.JSON)
+            .body(exceptionPayload)
+        .when()
+            .post("/finance/" + transactionNo + "/exception")
+        .then()
+            .statusCode(409)
+            .body("code", equalTo(4092));
+    }
+
+    @Test
+    @Order(10)
+    public void testFileOwnership_idorReturns403() {
+        String attackerUsername = "staff_idor_" + System.currentTimeMillis();
+        String registerPayload = "{" +
+                "\"username\":\"" + attackerUsername + "\"," +
+                "\"password\":\"" + STAFF_PASSWORD + "\"," +
+                "\"displayName\":\"IDOR Staff\"," +
+                "\"role\":\"STAFF\"" +
+                "}";
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(registerPayload)
+        .when()
+            .post("/auth/register")
+        .then()
+            .statusCode(anyOf(is(200), is(409)));
+
+        String hash = "idorhash" + System.currentTimeMillis();
+        String uploadPayload = "{" +
+                "\"hash\":\"" + hash + "\"," +
+                "\"fileName\":\"proof.txt\"," +
+                "\"contentType\":\"text/plain\"," +
+                "\"sizeBytes\":12," +
+                "\"chunks\":1," +
+                "\"currentChunk\":1" +
+                "}";
+
+        Response uploadResponse = given()
+            .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
+            .contentType(ContentType.JSON)
+            .body(uploadPayload)
+        .when()
+            .post("/file/upload")
+        .then()
+            .statusCode(200)
+            .body("code", equalTo(0))
+            .extract().response();
+
+        Long fileId = uploadResponse.jsonPath().getLong("data.id");
+
+        given()
+            .auth().preemptive().basic(attackerUsername, STAFF_PASSWORD)
+        .when()
+            .get("/file/" + fileId)
+        .then()
+            .statusCode(403)
+            .body("code", equalTo(4034));
     }
 }
