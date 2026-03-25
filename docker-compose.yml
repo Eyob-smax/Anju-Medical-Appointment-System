@@ -48,6 +48,8 @@ services:
       ANJU_CRYPTO_KEY: "${ANJU_CRYPTO_KEY:-anju-local-docker-key}"
     ports:
       - "8080:8080"
+    volumes:
+      - ./uploads:/app/uploads
 
   test-runner:
     image: maven:3.9-eclipse-temurin-17

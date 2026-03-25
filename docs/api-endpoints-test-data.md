@@ -380,23 +380,6 @@
   - `hash` (optional): file hash string
   - `expiresAt` (optional): ISO-8601 date string e.g. "2026-04-20T10:00:00"
 
-### POST /file/upload (Legacy Chunk Upload)
-
-- Roles: ADMIN, STAFF, OPERATOR
-- Body:
-
-```json
-{
-  "hash": "b1946ac92492d2347c6235b4d2611184",
-  "fileName": "medical-report.pdf",
-  "contentType": "application/pdf",
-  "sizeBytes": 1048576,
-  "chunks": 4,
-  "currentChunk": 1,
-  "expiresAt": "2026-04-20T10:00:00"
-}
-```
-
 ### GET /file/{id}
 
 - Roles: ADMIN, STAFF, OPERATOR
