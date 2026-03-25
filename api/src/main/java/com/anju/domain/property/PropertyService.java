@@ -48,6 +48,12 @@ public class PropertyService {
     }
 
     @Transactional(Transactional.TxType.SUPPORTS)
+    public Property getByCode(String code) {
+        return propertyRepository.findByCode(normalize(code))
+                .orElseThrow(() -> new BusinessException(4040, "Property not found."));
+    }
+
+    @Transactional(Transactional.TxType.SUPPORTS)
     public List<Property> list(String status, String complianceStatus) {
         Specification<Property> specification = Specification.where(null);
         if (StringUtils.hasText(status)) {

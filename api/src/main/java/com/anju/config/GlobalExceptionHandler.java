@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -43,6 +44,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<Result<Void>> handleConstraintViolationException(ConstraintViolationException ex) {
         Result<Void> result = Result.fail(4002, "Request parameter validation failed.");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Result<Void>> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException ex) {
+        String targetType = ex.getRequiredType() == null ? "required type" : ex.getRequiredType().getSimpleName();
+        String message = String.format("Parameter '%s' must be a valid %s.", ex.getName(), targetType);
+        Result<Void> result = Result.fail(4003, message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
     }
 

@@ -61,6 +61,14 @@ public class PropertyController {
         return ResponseEntity.ok(Result.success(PropertyResponse.fromEntity(property)));
     }
 
+    @GetMapping("/code/{code}")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR','REVIEWER','STAFF')")
+    @Operation(summary = "Get property by code")
+    public ResponseEntity<Result<PropertyResponse>> getByCode(@PathVariable String code) {
+        Property property = propertyService.getByCode(code);
+        return ResponseEntity.ok(Result.success(PropertyResponse.fromEntity(property)));
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','OPERATOR','REVIEWER','STAFF')")
     @Operation(summary = "List properties")
