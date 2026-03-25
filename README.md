@@ -3,6 +3,7 @@
 A robust medical appointment and facility management backend system built with Spring Boot, Docker, and Nacos.
 
 ## Prerequisites
+
 - Docker & Docker Compose
 
 ## Run The Application
@@ -16,6 +17,7 @@ docker compose up -d
 Docker Compose loads credentials from `.env` automatically.
 
 ### Exposed Ports
+
 - **API Interface**: `8080`
 - **MySQL**: `3306`
 - **Nacos Configuration Server**: `8848`
@@ -35,3 +37,19 @@ After tests finish, clean up test containers and volumes:
 ```bash
 docker compose --profile test down -v
 ```
+
+## Postman Quick Start
+
+Import these files into Postman:
+
+- `docs/postman/Anju-Medical.postman_collection.json`
+- `docs/postman/Anju-Local.postman_environment.json`
+
+Then:
+
+1. Select the **Anju Local** environment.
+2. Update `username` and `password` values if needed.
+3. Run **Auth -> Login** (optional check).
+4. Run protected requests like **Property -> List Properties**.
+
+The collection pre-request script automatically injects HTTP Basic `Authorization` for any route under `/api/*`, so you do not need to manually add the header on each protected request.

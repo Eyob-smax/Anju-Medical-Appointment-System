@@ -9,6 +9,8 @@ import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 
 @RestController
@@ -37,10 +39,14 @@ public class AuthController {
     @Operation(summary = "Login", description = "Validates credentials and returns account identity details.")
     public Result<Map<String, Object>> login(@Valid @RequestBody LoginRequest request) {
         User user = authService.login(request);
+        String basicToken = Base64.getEncoder().encodeToString(
+            (request.getUsername() + ":" + request.getPassword()).getBytes(StandardCharsets.UTF_8)
+        );
         return Result.success(Map.of(
                 "username", user.getUsername(),
                 "role", user.getRole(),
-                "message", "Login success. Use HTTP Basic credentials for protected routes."
+            "authorization", "Basic " + basicToken,
+            "message", "Login success. Send the authorization value in every protected request."
         ));
     }
 
