@@ -64,6 +64,8 @@ Errors return `code: 400` (or appropriate HTTP status mapping) with an error `me
 ### 1. Create Appointment
 **Endpoint:** `POST /appointment`
 **Description:** Books a new medical appointment, validating against scheduling conflicts for the staff and resource.
+**Headers:**
+- Optional: `X-Idempotency-Key` for safe retries (same key returns the original appointment response).
 **Request Body (`CreateAppointmentRequest`):**
 ```json
 {
@@ -98,23 +100,46 @@ Errors return `code: 400` (or appropriate HTTP status mapping) with an error `me
 
 ## Finance API
 
-### 1. Record Transaction
-**Endpoint:** `POST /finance`
-**Description:** Records a transaction (requires finance role and secondary password).
+### 1. Bookkeeping Transaction (Primary Write Endpoint)
+**Endpoint:** `POST /finance/bookkeeping`
+**Description:** Records a transaction with request validation.
+**Headers:**
+- Optional: `X-Idempotency-Key` for replay-safe writes.
 
-### 2. Refund
+### 2. Create Transaction (Secondary Password Protected)
+**Endpoint:** `POST /finance`
+**Description:** Records a transaction and requires secondary password verification.
+**Headers:**
+- Required: `X-Secondary-Password`
+- Optional: `X-Idempotency-Key`
+
+### 3. Refund
 **Endpoint:** `POST /finance/{transactionNo}/refund`
 **Description:** Creates a linked refund with amount guardrails.
 
-### 3. Daily Settlement
+### 4. Daily Settlement
 **Endpoint:** `POST /finance/settlements/daily`
 **Description:** Settles successful daily payment transactions.
 
-### 4. Daily Statement
+### 5. Daily Statement
 **Endpoint:** `GET /finance/statements/daily?date=YYYY-MM-DD`
 **Description:** Returns payment/refund/net summary for the day.
 
-### 5. Invoice Lifecycle
+### 6. Daily Statement Export
+**Endpoint:** `GET /finance/statements/daily/export?date=YYYY-MM-DD`
+**Description:** Exports the daily statement as CSV attachment.
+
+### 7. Mark Transaction Exception
+**Endpoint:** `POST /finance/{transactionNo}/exception`
+**Description:** Marks a transaction as exception with a reason. Re-marking the same transaction returns conflict.
+**Request Body (`ExceptionMarkRequest`):**
+```json
+{
+  "reason": "manual reconciliation mismatch"
+}
+```
+
+### 8. Invoice Lifecycle
 **Endpoints:**
 - `POST /finance/{transactionNo}/invoice/request`
 - `POST /finance/{transactionNo}/invoice/issue`

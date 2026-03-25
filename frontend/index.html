@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anju System Demo UI</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <h1>Anju Medical Appointment System</h1>
+    <p>Presentation dashboard for backend + frontend submission screenshots and videos.</p>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>Backend Status</h2>
+      <p id="health">Checking API root endpoint...</p>
+      <button id="checkBtn">Recheck API</button>
+    </section>
+
+    <section class="card">
+      <h2>Swagger</h2>
+      <p>Use Swagger for endpoint walkthrough recordings.</p>
+      <a class="btn" href="http://localhost:8080/swagger-ui.html" target="_blank" rel="noopener">Open Swagger UI</a>
+    </section>
+
+    <section class="card">
+      <h2>Sample Endpoints</h2>
+      <ul>
+        <li>GET /api/properties</li>
+        <li>POST /appointment</li>
+        <li>POST /finance/bookkeeping</li>
+        <li>GET /finance/statements/daily/export</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Submission Notes</h2>
+      <p>Capture both:</p>
+      <ul>
+        <li>Frontend dashboard view</li>
+        <li>Swagger endpoint execution + responses</li>
+      </ul>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

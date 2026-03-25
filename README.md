@@ -47,6 +47,16 @@ Authentication in Swagger:
 - Use an existing account (for example, register via `POST /auth/register`) and then click **Authorize** in Swagger UI.
 - For endpoints requiring secondary password, include header `X-Secondary-Password`.
 
+## Frontend Demo (For Submission Screenshots)
+
+A minimal presentation UI is included for full-stack style submission evidence.
+
+- Demo page: `frontend/index.html`
+- Style: `frontend/styles.css`
+- API check script: `frontend/app.js`
+
+Open `frontend/index.html` in a browser and keep backend running on `http://localhost:8080`.
+
 ## Run Tests In Docker (Non-Interactive)
 
 All test suites are executed in containers (app + API tests + unit tests) with no interactive prompts.
@@ -58,8 +68,12 @@ sh run_tests.sh
 You can also run tests directly with Docker Compose commands (no wrapper script):
 
 ```bash
-docker compose --profile test down -v
 docker compose --profile test up --build --abort-on-container-exit --exit-code-from test-runner test-runner
+```
+
+Optional cleanup after test run:
+
+```bash
 docker compose --profile test down -v
 ```
 
