@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `secondary_password` VARCHAR(255) NULL,
   `display_name` VARCHAR(100) NOT NULL DEFAULT '',
   `email` VARCHAR(128) NULL,
-  `phone` VARCHAR(32) NULL,
+  `phone` VARCHAR(255) NULL,
   `role` VARCHAR(32) NOT NULL DEFAULT 'STAFF',
   `status` TINYINT NOT NULL DEFAULT 1,
   `last_login_at` DATETIME NULL,

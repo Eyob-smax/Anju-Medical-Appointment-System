@@ -35,7 +35,7 @@ public class User {
     private String email;
 
     @Convert(converter = CryptoConverter.class)
-    @Column(length = 32)
+    @Column(length = 255)
     private String phone;
 
     @Column(nullable = false, length = 32)
