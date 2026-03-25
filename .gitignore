@@ -18,6 +18,7 @@ target/
 # Test reports / compiler metadata
 surefire-reports/
 maven-status/
+uploads
 
 
 # OS/editor noise
