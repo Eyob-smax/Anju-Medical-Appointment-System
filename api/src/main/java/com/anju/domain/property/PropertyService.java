@@ -37,6 +37,7 @@ public class PropertyService {
         property.setStartDate(request.getStartDate());
         property.setEndDate(request.getEndDate());
         property.setComplianceStatus(normalizeOrDefault(request.getComplianceStatus(), "PENDING"));
+        property.setMediaRefs(serializeMediaRefs(request.getMediaRefs()));
         return propertyRepository.save(property);
     }
 
@@ -89,6 +90,9 @@ public class PropertyService {
         if (StringUtils.hasText(request.getComplianceStatus())) {
             property.setComplianceStatus(normalize(request.getComplianceStatus()));
         }
+        if (request.getMediaRefs() != null) {
+            property.setMediaRefs(serializeMediaRefs(request.getMediaRefs()));
+        }
 
         validateDateRange(property.getStartDate(), property.getEndDate());
         return propertyRepository.save(property);
@@ -129,5 +133,17 @@ public class PropertyService {
 
     private String normalize(String value) {
         return value.trim().toUpperCase();
+    }
+
+    private String serializeMediaRefs(List<String> mediaRefs) {
+        if (mediaRefs == null || mediaRefs.isEmpty()) {
+            return null;
+        }
+        return mediaRefs.stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .reduce((left, right) -> left + "\n" + right)
+                .orElse(null);
     }
 }

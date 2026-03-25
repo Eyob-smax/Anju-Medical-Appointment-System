@@ -7,6 +7,7 @@ import com.anju.domain.file.dto.ChunkUploadRequest;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +16,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class FileService {
@@ -22,10 +25,22 @@ public class FileService {
     private static final Logger log = LoggerFactory.getLogger(FileService.class);
     private final SysFileRepository sysFileRepository;
     private final CurrentUserService currentUserService;
+    private final int maxConcurrentUploadsPerUser;
+    private final long minChunkUploadIntervalMs;
+    private final int defaultRetentionDays;
+    private final Map<Long, AtomicInteger> activeUploadsByUser = new ConcurrentHashMap<>();
+    private final Map<Long, Long> lastUploadEpochMsByUser = new ConcurrentHashMap<>();
 
-    public FileService(SysFileRepository sysFileRepository, CurrentUserService currentUserService) {
+    public FileService(SysFileRepository sysFileRepository,
+                       CurrentUserService currentUserService,
+                       @Value("${file.upload.max-concurrent-per-user:3}") int maxConcurrentUploadsPerUser,
+                       @Value("${file.upload.min-chunk-interval-ms:150}") long minChunkUploadIntervalMs,
+                       @Value("${file.retention.default-days:30}") int defaultRetentionDays) {
         this.sysFileRepository = sysFileRepository;
         this.currentUserService = currentUserService;
+        this.maxConcurrentUploadsPerUser = maxConcurrentUploadsPerUser;
+        this.minChunkUploadIntervalMs = minChunkUploadIntervalMs;
+        this.defaultRetentionDays = defaultRetentionDays;
     }
 
     @Transactional
@@ -43,39 +58,51 @@ public class FileService {
     public SysFile uploadChunk(ChunkUploadRequest request) {
         validateChunkRequest(request);
         User currentUser = currentUserService.requireCurrentUser();
+        acquireUploadPermit(currentUser.getId());
 
-        Optional<SysFile> existing = sysFileRepository.findTopByHashAndIsDeletedFalseOrderByVersionDesc(request.getHash());
-        SysFile sysFile;
-        if (existing.isPresent()) {
-            sysFile = existing.get();
-            enforceFileAccess(sysFile, currentUser);
-            if (sysFile.getStoragePath() != null) {
-                return sysFile;
+        try {
+            Optional<SysFile> existing = sysFileRepository.findTopByHashAndIsDeletedFalseOrderByVersionDesc(request.getHash());
+            SysFile sysFile;
+            if (existing.isPresent()) {
+                sysFile = existing.get();
+                enforceFileAccess(sysFile, currentUser);
+                if (sysFile.getStoragePath() != null) {
+                    return sysFile;
+                }
+            } else {
+                sysFile = new SysFile();
+                sysFile.setHash(request.getHash());
+                sysFile.setChunks(request.getChunks());
+                sysFile.setVersion(1);
+                sysFile.setFileName(request.getFileName() == null ? "upload_" + System.currentTimeMillis() : request.getFileName().trim());
+                sysFile.setContentType(request.getContentType() == null ? "application/octet-stream" : request.getContentType().trim());
+                sysFile.setSizeBytes(request.getSizeBytes() == null ? 0L : request.getSizeBytes());
+                sysFile.setUploadedBy(currentUser.getId());
+                sysFile.setExpiresAt(resolveExpiresAt(request.getExpiresAt()));
+                sysFile = sysFileRepository.save(sysFile);
             }
-        } else {
-            sysFile = new SysFile();
-            sysFile.setHash(request.getHash());
-            sysFile.setChunks(request.getChunks());
-            sysFile.setVersion(1);
-            sysFile.setFileName(request.getFileName() == null ? "upload_" + System.currentTimeMillis() : request.getFileName().trim());
-            sysFile.setContentType(request.getContentType() == null ? "application/octet-stream" : request.getContentType().trim());
-            sysFile.setSizeBytes(request.getSizeBytes() == null ? 0L : request.getSizeBytes());
-            sysFile.setUploadedBy(currentUser.getId());
-            sysFile = sysFileRepository.save(sysFile);
-        }
 
-        if (request.getCurrentChunk().equals(sysFile.getChunks())) {
-            sysFile.setStoragePath("/files/" + sysFile.getHash() + "/v" + sysFile.getVersion());
-            sysFileRepository.save(sysFile);
-        }
+            if (request.getCurrentChunk().equals(sysFile.getChunks())) {
+                sysFile.setStoragePath("/files/" + sysFile.getHash() + "/v" + sysFile.getVersion());
+                if (sysFile.getExpiresAt() == null) {
+                    sysFile.setExpiresAt(resolveExpiresAt(request.getExpiresAt()));
+                }
+                sysFileRepository.save(sysFile);
+            }
 
-        return sysFile;
+            return sysFile;
+        } finally {
+            releaseUploadPermit(currentUser.getId());
+        }
     }
 
     @Transactional(Transactional.TxType.SUPPORTS)
     public SysFile getFile(Long id) {
         SysFile file = sysFileRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new BusinessException(4040, "File not found."));
+        if (file.getExpiresAt() != null && file.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BusinessException(4044, "File has expired.");
+        }
         enforceFileAccess(file, currentUserService.requireCurrentUser());
         return file;
     }
@@ -84,9 +111,15 @@ public class FileService {
     public List<SysFile> listAccessibleFiles() {
         User currentUser = currentUserService.requireCurrentUser();
         if (isPrivileged(currentUser)) {
-            return sysFileRepository.findAll().stream().filter(f -> !Boolean.TRUE.equals(f.getIsDeleted())).toList();
+            return sysFileRepository.findAll().stream()
+                .filter(f -> !Boolean.TRUE.equals(f.getIsDeleted()))
+                .filter(f -> f.getExpiresAt() == null || f.getExpiresAt().isAfter(LocalDateTime.now()))
+                .toList();
         }
-        return sysFileRepository.findByUploadedByAndIsDeletedFalseOrderByUpdatedAtDesc(currentUser.getId());
+        return sysFileRepository.findByUploadedByAndIsDeletedFalseOrderByUpdatedAtDesc(currentUser.getId())
+            .stream()
+            .filter(f -> f.getExpiresAt() == null || f.getExpiresAt().isAfter(LocalDateTime.now()))
+            .toList();
     }
 
     @Transactional
@@ -138,6 +171,7 @@ public class FileService {
         rolled.setStoragePath(target.getStoragePath());
         rolled.setUploadedBy(currentUser.getId());
         rolled.setIsDeleted(false);
+        rolled.setExpiresAt(resolveExpiresAt(target.getExpiresAt()));
         return sysFileRepository.save(rolled);
     }
 
@@ -184,7 +218,41 @@ public class FileService {
         log.info("Starting recycle bin task...");
         LocalDateTime threshold = LocalDateTime.now().minusDays(30);
         int deletedCount = sysFileRepository.permanentlyDeleteOldFiles(threshold);
-        log.info("Recycle bin task completed. Permanently deleted {} files.", deletedCount);
+        int expiredCount = sysFileRepository.permanentlyDeleteExpiredFiles(LocalDateTime.now());
+        log.info("Recycle bin task completed. Permanently deleted {} deleted files and {} expired files.", deletedCount, expiredCount);
+    }
+
+    private void acquireUploadPermit(Long userId) {
+        long now = System.currentTimeMillis();
+        Long lastUploadAt = lastUploadEpochMsByUser.get(userId);
+        if (lastUploadAt != null && now - lastUploadAt < minChunkUploadIntervalMs) {
+            throw new BusinessException(4291, "Upload throttled. Please slow down chunk submissions.");
+        }
+
+        AtomicInteger active = activeUploadsByUser.computeIfAbsent(userId, ignored -> new AtomicInteger(0));
+        int current = active.incrementAndGet();
+        if (current > maxConcurrentUploadsPerUser) {
+            active.decrementAndGet();
+            throw new BusinessException(4290, "Too many concurrent uploads for this user.");
+        }
+        lastUploadEpochMsByUser.put(userId, now);
+    }
+
+    private void releaseUploadPermit(Long userId) {
+        AtomicInteger active = activeUploadsByUser.get(userId);
+        if (active == null) {
+            return;
+        }
+        if (active.decrementAndGet() <= 0) {
+            activeUploadsByUser.remove(userId);
+        }
+    }
+
+    private LocalDateTime resolveExpiresAt(LocalDateTime requestedExpiresAt) {
+        if (requestedExpiresAt != null) {
+            return requestedExpiresAt;
+        }
+        return LocalDateTime.now().plusDays(defaultRetentionDays);
     }
 
     private void validateChunkRequest(ChunkUploadRequest request) {

@@ -5,6 +5,7 @@ import com.anju.common.BusinessException;
 import com.anju.common.Result;
 import com.anju.domain.auth.AuthService;
 import com.anju.domain.auth.CurrentUserService;
+import com.anju.domain.finance.dto.ExceptionMarkRequest;
 import com.anju.domain.finance.dto.InvoiceIssueRequest;
 import com.anju.domain.finance.dto.RefundRequest;
 import com.anju.domain.finance.dto.SettlementRequest;
@@ -13,6 +14,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -41,8 +45,10 @@ public class TransactionController {
     @PostMapping("/bookkeeping")
     @PreAuthorize("hasAnyRole('ADMIN','FINANCE')")
     @Operation(summary = "Bookkeeping transaction")
-    public Result<Transaction> record(@RequestBody TransactionRequest request) {
-        return Result.success(transactionService.recordTransaction(request));
+    public Result<Transaction> record(
+            @Valid @RequestBody TransactionRequest request,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+        return Result.success(transactionService.recordTransaction(request, idempotencyKey));
     }
     
     @Auditable(module = "FINANCE", action = "Create transaction")
@@ -52,9 +58,10 @@ public class TransactionController {
     public Result<Transaction> create(
             @Valid @RequestBody TransactionRequest request,
             @RequestHeader("X-Secondary-Password") String secondaryPassword,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
             Authentication authentication) {
         authService.verifySecondaryPassword(authentication.getName(), secondaryPassword);
-        return Result.success(transactionService.recordTransaction(request));
+        return Result.success(transactionService.recordTransaction(request, idempotencyKey));
     }
 
     @GetMapping("/{transactionNo}")
@@ -95,6 +102,36 @@ public class TransactionController {
     @Operation(summary = "Get daily statement")
     public Result<Map<String, Object>> dailyStatement(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return Result.success(transactionService.dailyStatement(date));
+    }
+
+    @GetMapping("/statements/daily/export")
+    @PreAuthorize("hasAnyRole('ADMIN','FINANCE','AUDITOR')")
+    @Operation(summary = "Export daily statement as CSV")
+    public ResponseEntity<String> dailyStatementExport(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        Map<String, Object> statement = transactionService.dailyStatement(date);
+        String csv = "date,paymentCount,paymentTotal,refundCount,refundTotal,exceptionCount,exceptionAmount,netAmount\n"
+                + statement.get("date") + ","
+                + statement.get("paymentCount") + ","
+                + statement.get("paymentTotal") + ","
+                + statement.get("refundCount") + ","
+                + statement.get("refundTotal") + ","
+                + statement.get("exceptionCount") + ","
+                + statement.get("exceptionAmount") + ","
+                + statement.get("netAmount") + "\n";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=statement-" + date + ".csv")
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(csv);
+    }
+
+    @Auditable(module = "FINANCE", action = "Mark transaction exception")
+    @PostMapping("/{transactionNo}/exception")
+    @PreAuthorize("hasAnyRole('ADMIN','FINANCE')")
+    @Operation(summary = "Mark transaction as exception")
+    public Result<Transaction> markException(
+            @PathVariable String transactionNo,
+            @Valid @RequestBody ExceptionMarkRequest request) {
+        return Result.success(transactionService.markAsException(transactionNo, request.getReason()));
     }
 
     @Auditable(module = "FINANCE", action = "Request invoice")

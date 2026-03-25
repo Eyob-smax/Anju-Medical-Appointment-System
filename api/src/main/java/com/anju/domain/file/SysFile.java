@@ -38,6 +38,9 @@ public class SysFile {
     @Column(name = "uploaded_by")
     private Long uploadedBy;
 
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -65,6 +68,8 @@ public class SysFile {
     public void setIsDeleted(Boolean isDeleted) { this.isDeleted = isDeleted; }
     public Long getUploadedBy() { return uploadedBy; }
     public void setUploadedBy(Long uploadedBy) { this.uploadedBy = uploadedBy; }
+    public LocalDateTime getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

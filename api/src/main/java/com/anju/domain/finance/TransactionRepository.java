@@ -11,6 +11,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     Optional<Transaction> findByTransactionNo(String transactionNo);
 
+    Optional<Transaction> findByIdempotencyKey(String idempotencyKey);
+
     List<Transaction> findByOccurredAtBetween(LocalDateTime start, LocalDateTime end);
 
     List<Transaction> findByStatusAndOccurredAtBetween(String status, LocalDateTime start, LocalDateTime end);

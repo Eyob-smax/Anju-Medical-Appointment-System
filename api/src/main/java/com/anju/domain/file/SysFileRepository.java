@@ -32,4 +32,8 @@ public interface SysFileRepository extends JpaRepository<SysFile, Long> {
     @Modifying
     @Query("DELETE FROM SysFile f WHERE f.isDeleted = true AND f.updatedAt < :thresholdDate")
     int permanentlyDeleteOldFiles(@Param("thresholdDate") LocalDateTime thresholdDate);
+
+    @Modifying
+    @Query("DELETE FROM SysFile f WHERE f.expiresAt IS NOT NULL AND f.expiresAt < :thresholdDate")
+    int permanentlyDeleteExpiredFiles(@Param("thresholdDate") LocalDateTime thresholdDate);
 }

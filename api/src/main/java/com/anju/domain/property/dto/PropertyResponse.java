@@ -4,6 +4,8 @@ import com.anju.domain.property.Property;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
 
 public class PropertyResponse {
 
@@ -15,6 +17,7 @@ public class PropertyResponse {
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private String complianceStatus;
+    private List<String> mediaRefs;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -28,9 +31,20 @@ public class PropertyResponse {
         response.setStartDate(property.getStartDate());
         response.setEndDate(property.getEndDate());
         response.setComplianceStatus(property.getComplianceStatus());
+        response.setMediaRefs(parseMediaRefs(property.getMediaRefs()));
         response.setCreatedAt(property.getCreatedAt());
         response.setUpdatedAt(property.getUpdatedAt());
         return response;
+    }
+
+    private static List<String> parseMediaRefs(String rawMediaRefs) {
+        if (rawMediaRefs == null || rawMediaRefs.isBlank()) {
+            return Collections.emptyList();
+        }
+        return java.util.Arrays.stream(rawMediaRefs.split("\\n"))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .toList();
     }
 
     public Long getId() {
@@ -95,6 +109,14 @@ public class PropertyResponse {
 
     public void setComplianceStatus(String complianceStatus) {
         this.complianceStatus = complianceStatus;
+    }
+
+    public List<String> getMediaRefs() {
+        return mediaRefs;
+    }
+
+    public void setMediaRefs(List<String> mediaRefs) {
+        this.mediaRefs = mediaRefs;
     }
 
     public LocalDateTime getCreatedAt() {

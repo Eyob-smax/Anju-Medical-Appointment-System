@@ -1,5 +1,7 @@
 package com.anju.domain.file.dto;
 
+import java.time.LocalDateTime;
+
 public class ChunkUploadRequest {
     private String hash;
     private String fileName;
@@ -7,6 +9,7 @@ public class ChunkUploadRequest {
     private Long sizeBytes;
     private Integer chunks;
     private Integer currentChunk;
+    private LocalDateTime expiresAt;
 
     public String getHash() { return hash; }
     public void setHash(String hash) { this.hash = hash; }
@@ -20,4 +23,6 @@ public class ChunkUploadRequest {
     public void setChunks(Integer chunks) { this.chunks = chunks; }
     public Integer getCurrentChunk() { return currentChunk; }
     public void setCurrentChunk(Integer currentChunk) { this.currentChunk = currentChunk; }
+    public LocalDateTime getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
 }

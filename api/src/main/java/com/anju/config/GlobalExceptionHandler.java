@@ -22,7 +22,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Result<Void>> handleBusinessException(BusinessException ex) {
         Result<Void> result = Result.fail(ex.getCode(), ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
+        return ResponseEntity.status(resolveStatus(ex.getCode())).body(result);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -50,7 +50,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Void>> handleException(Exception ex) {
         log.error("Unhandled system exception", ex);
         Result<Void> result = Result.fail(5000, "System is busy, please try again later.");
-        return ResponseEntity.status(HttpStatus.OK).body(result);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
+    }
+
+    private HttpStatus resolveStatus(int code) {
+        if (code >= 5000) {
+            return HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        if (code >= 4040 && code < 5000) {
+            return HttpStatus.NOT_FOUND;
+        }
+        if (code >= 4030 && code < 4040) {
+            return HttpStatus.FORBIDDEN;
+        }
+        if (code >= 4010 && code < 4030) {
+            return HttpStatus.UNAUTHORIZED;
+        }
+        if (code >= 4090 && code < 4100) {
+            return HttpStatus.CONFLICT;
+        }
+        return HttpStatus.BAD_REQUEST;
     }
 
     private String formatFieldError(FieldError fieldError) {

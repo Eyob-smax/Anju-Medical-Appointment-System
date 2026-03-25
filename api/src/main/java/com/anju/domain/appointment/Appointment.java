@@ -44,6 +44,9 @@ public class Appointment {
     @Column(name = "reschedule_count", nullable = false)
     private Integer rescheduleCount = 0;
 
+    @Column(name = "idempotency_key", unique = true, length = 128)
+    private String idempotencyKey;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -122,6 +125,14 @@ public class Appointment {
 
     public void setRescheduleCount(Integer rescheduleCount) {
         this.rescheduleCount = rescheduleCount;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 
     public LocalDateTime getCreatedAt() {

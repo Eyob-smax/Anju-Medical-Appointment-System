@@ -73,7 +73,16 @@ public class CryptoConverter implements AttributeConverter<String, String> {
     private static SecretKeySpec buildSecretKey() {
         String rawKey = System.getenv("ANJU_CRYPTO_KEY");
         if (rawKey == null || rawKey.isBlank()) {
-            rawKey = System.getProperty("anju.crypto.key", "change-this-in-production");
+            rawKey = System.getProperty("anju.crypto.key");
+        }
+
+        if (rawKey == null || rawKey.isBlank()) {
+            String profiles = System.getenv("SPRING_PROFILES_ACTIVE");
+            boolean testProfile = profiles != null && profiles.toLowerCase().contains("test");
+            if (!testProfile) {
+                throw new IllegalStateException("Missing encryption key. Set ANJU_CRYPTO_KEY or anju.crypto.key.");
+            }
+            rawKey = "local-test-only-key";
         }
 
         try {

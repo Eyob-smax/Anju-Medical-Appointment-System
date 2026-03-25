@@ -45,6 +45,9 @@ public class Property {
     @Column(name = "compliance_status", nullable = false, length = 32)
     private String complianceStatus = "PENDING";
 
+    @Column(name = "media_refs", length = 2000)
+    private String mediaRefs;
+
     @Column(name = "deleted", nullable = false)
     private Boolean deleted = Boolean.FALSE;
 
@@ -118,6 +121,14 @@ public class Property {
 
     public void setComplianceStatus(String complianceStatus) {
         this.complianceStatus = complianceStatus;
+    }
+
+    public String getMediaRefs() {
+        return mediaRefs;
+    }
+
+    public void setMediaRefs(String mediaRefs) {
+        this.mediaRefs = mediaRefs;
     }
 
     public Boolean getDeleted() {

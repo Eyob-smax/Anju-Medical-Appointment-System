@@ -47,3 +47,10 @@ springdoc:
     path: /swagger-ui.html
     operationsSorter: method
     tagsSorter: alpha
+
+file:
+  upload:
+    max-concurrent-per-user: ${FILE_UPLOAD_MAX_CONCURRENT_PER_USER:3}
+    min-chunk-interval-ms: ${FILE_UPLOAD_MIN_CHUNK_INTERVAL_MS:150}
+  retention:
+    default-days: ${FILE_RETENTION_DEFAULT_DAYS:30}

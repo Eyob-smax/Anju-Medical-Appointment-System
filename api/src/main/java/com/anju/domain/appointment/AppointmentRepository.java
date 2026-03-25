@@ -5,12 +5,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
     List<Appointment> findByStatusAndCreatedAtBefore(String status, LocalDateTime threshold);
 
         List<Appointment> findByStaffIdOrderByStartTimeDesc(Long staffId);
+
+        Optional<Appointment> findByIdempotencyKey(String idempotencyKey);
 
     boolean existsByNumber(String number);
 

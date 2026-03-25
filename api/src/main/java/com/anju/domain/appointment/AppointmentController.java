@@ -33,8 +33,10 @@ public class AppointmentController {
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','SCHEDULER','STAFF')")
     @Operation(summary = "Create appointment")
-    public ResponseEntity<Result<AppointmentResponse>> create(@Valid @RequestBody CreateAppointmentRequest request) {
-        Appointment appointment = appointmentService.create(request);
+    public ResponseEntity<Result<AppointmentResponse>> create(
+            @Valid @RequestBody CreateAppointmentRequest request,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+        Appointment appointment = appointmentService.create(request, idempotencyKey);
         return ResponseEntity.ok(Result.success("Appointment created.", AppointmentResponse.fromEntity(appointment)));
     }
 

@@ -33,6 +33,18 @@ public class TransactionService {
     }
 
     public Transaction recordTransaction(TransactionRequest request) {
+        return recordTransaction(request, null);
+    }
+
+    public Transaction recordTransaction(TransactionRequest request, String idempotencyKey) {
+        if (StringUtils.hasText(idempotencyKey)) {
+            Transaction existing = transactionRepository.findByIdempotencyKey(idempotencyKey.trim())
+                    .orElse(null);
+            if (existing != null) {
+                enforceTransactionAccess(existing);
+                return existing;
+            }
+        }
         if (transactionRepository.existsByTransactionNo(request.getTransactionNumber())) {
             throw new BusinessException(400, "Transaction already exists");
         }
@@ -48,6 +60,11 @@ public class TransactionService {
         transaction.setType(request.getType());
         transaction.setCurrency(StringUtils.hasText(request.getCurrency()) ? request.getCurrency().trim().toUpperCase() : "USD");
         transaction.setStatus("SUCCESS");
+        transaction.setChannel(StringUtils.hasText(request.getChannel()) ? request.getChannel().trim().toUpperCase() : "MANUAL");
+        transaction.setRefundable(request.getRefundable() == null ? true : request.getRefundable());
+        transaction.setExceptionFlag(false);
+        transaction.setExceptionReason(null);
+        transaction.setIdempotencyKey(StringUtils.hasText(idempotencyKey) ? idempotencyKey.trim() : null);
         transaction.setRemark(request.getRemark());
         transaction.setOccurredAt(LocalDateTime.now());
         return transactionRepository.save(transaction);
@@ -76,6 +93,9 @@ public class TransactionService {
         if (!"SUCCESS".equalsIgnoreCase(original.getStatus()) && !"SETTLED".equalsIgnoreCase(original.getStatus())) {
             throw new BusinessException(4005, "Only successful or settled transactions can be refunded.");
         }
+        if (!Boolean.TRUE.equals(original.getRefundable())) {
+            throw new BusinessException(4008, "This transaction is marked as non-refundable.");
+        }
         if (request.getAmount().compareTo(original.getAmount()) > 0) {
             throw new BusinessException(4006, "Refund amount cannot exceed original transaction amount.");
         }
@@ -88,6 +108,10 @@ public class TransactionService {
         refund.setAmount(request.getAmount());
         refund.setCurrency(original.getCurrency());
         refund.setStatus("SUCCESS");
+        refund.setChannel(original.getChannel());
+        refund.setRefundable(false);
+        refund.setExceptionFlag(false);
+        refund.setExceptionReason(null);
         refund.setOccurredAt(LocalDateTime.now());
         refund.setRelatedTransactionNo(original.getTransactionNo());
         refund.setRemark(request.getReason());
@@ -126,8 +150,10 @@ public class TransactionService {
 
         BigDecimal paymentTotal = BigDecimal.ZERO;
         BigDecimal refundTotal = BigDecimal.ZERO;
+        BigDecimal exceptionAmount = BigDecimal.ZERO;
         int paymentCount = 0;
         int refundCount = 0;
+        int exceptionCount = 0;
         for (Transaction tx : transactions) {
             if ("PAYMENT".equalsIgnoreCase(tx.getType())) {
                 paymentCount++;
@@ -137,6 +163,10 @@ public class TransactionService {
                 refundCount++;
                 refundTotal = refundTotal.add(tx.getAmount());
             }
+            if (Boolean.TRUE.equals(tx.getExceptionFlag())) {
+                exceptionCount++;
+                exceptionAmount = exceptionAmount.add(tx.getAmount());
+            }
         }
 
         Map<String, Object> result = new HashMap<>();
@@ -145,8 +175,20 @@ public class TransactionService {
         result.put("paymentTotal", paymentTotal);
         result.put("refundCount", refundCount);
         result.put("refundTotal", refundTotal);
+        result.put("exceptionCount", exceptionCount);
+        result.put("exceptionAmount", exceptionAmount);
         result.put("netAmount", paymentTotal.subtract(refundTotal));
         return result;
+    }
+
+    public Transaction markAsException(String transactionNo, String reason) {
+        Transaction transaction = getTransactionByNo(transactionNo);
+        if (Boolean.TRUE.equals(transaction.getExceptionFlag())) {
+            throw new BusinessException(4092, "Transaction is already marked as exception.");
+        }
+        transaction.setExceptionFlag(true);
+        transaction.setExceptionReason(reason.trim());
+        return transactionRepository.save(transaction);
     }
 
     public Transaction requestInvoice(String transactionNo) {

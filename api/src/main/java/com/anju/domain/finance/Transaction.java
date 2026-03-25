@@ -35,6 +35,21 @@ public class Transaction {
     @Column(nullable = false)
     private String status; // e.g., SUCCESS, PENDING, FAILED
 
+    @Column(name = "channel", nullable = false)
+    private String channel = "MANUAL";
+
+    @Column(name = "refundable", nullable = false)
+    private Boolean refundable = true;
+
+    @Column(name = "exception_flag", nullable = false)
+    private Boolean exceptionFlag = false;
+
+    @Column(name = "exception_reason")
+    private String exceptionReason;
+
+    @Column(name = "idempotency_key", unique = true, length = 128)
+    private String idempotencyKey;
+
     @Column(name = "occurred_at", nullable = false)
     private LocalDateTime occurredAt;
 
@@ -83,6 +98,16 @@ public class Transaction {
     public void setCurrency(String currency) { this.currency = currency; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getChannel() { return channel; }
+    public void setChannel(String channel) { this.channel = channel; }
+    public Boolean getRefundable() { return refundable; }
+    public void setRefundable(Boolean refundable) { this.refundable = refundable; }
+    public Boolean getExceptionFlag() { return exceptionFlag; }
+    public void setExceptionFlag(Boolean exceptionFlag) { this.exceptionFlag = exceptionFlag; }
+    public String getExceptionReason() { return exceptionReason; }
+    public void setExceptionReason(String exceptionReason) { this.exceptionReason = exceptionReason; }
+    public String getIdempotencyKey() { return idempotencyKey; }
+    public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
     public LocalDateTime getOccurredAt() { return occurredAt; }
     public void setOccurredAt(LocalDateTime occurredAt) { this.occurredAt = occurredAt; }
     public String getRemark() { return remark; }

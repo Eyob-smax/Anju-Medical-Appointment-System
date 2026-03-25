@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class UpdatePropertyRequest {
 
@@ -26,6 +27,8 @@ public class UpdatePropertyRequest {
 
     @Size(max = 32)
     private String complianceStatus;
+
+    private List<@Size(max = 255) String> mediaRefs;
 
     public String getCode() {
         return code;
@@ -81,5 +84,13 @@ public class UpdatePropertyRequest {
 
     public void setComplianceStatus(String complianceStatus) {
         this.complianceStatus = complianceStatus;
+    }
+
+    public List<String> getMediaRefs() {
+        return mediaRefs;
+    }
+
+    public void setMediaRefs(List<String> mediaRefs) {
+        this.mediaRefs = mediaRefs;
     }
 }

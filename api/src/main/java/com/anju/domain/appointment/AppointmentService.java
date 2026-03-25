@@ -36,7 +36,19 @@ public class AppointmentService {
     }
 
     public Appointment create(CreateAppointmentRequest request) {
+        return create(request, null);
+    }
+
+    public Appointment create(CreateAppointmentRequest request, String idempotencyKey) {
         User user = currentUserService.requireCurrentUser();
+        if (StringUtils.hasText(idempotencyKey)) {
+            Appointment existing = appointmentRepository.findByIdempotencyKey(idempotencyKey.trim())
+                    .orElse(null);
+            if (existing != null) {
+                enforceAppointmentAccess(existing);
+                return existing;
+            }
+        }
         if ("STAFF".equalsIgnoreCase(user.getRole()) && !user.getId().equals(request.getStaffId())) {
             throw new BusinessException(4031, "You cannot create appointments for another staff member.");
         }
@@ -64,6 +76,7 @@ public class AppointmentService {
         appointment.setStatus(normalizeOrDefault(request.getStatus(), "PENDING"));
         appointment.setPenalty(request.getPenalty() == null ? BigDecimal.ZERO : request.getPenalty());
         appointment.setRescheduleCount(request.getRescheduleCount() == null ? 0 : request.getRescheduleCount());
+        appointment.setIdempotencyKey(StringUtils.hasText(idempotencyKey) ? idempotencyKey.trim() : null);
         return appointmentRepository.save(appointment);
     }
 
