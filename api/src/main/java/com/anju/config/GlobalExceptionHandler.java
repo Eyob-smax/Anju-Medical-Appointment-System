@@ -57,6 +57,9 @@ public class GlobalExceptionHandler {
         if (code >= 5000) {
             return HttpStatus.INTERNAL_SERVER_ERROR;
         }
+        if (code >= 4090 && code < 4100) {
+            return HttpStatus.CONFLICT;
+        }
         if (code >= 4040 && code < 5000) {
             return HttpStatus.NOT_FOUND;
         }
@@ -65,9 +68,6 @@ public class GlobalExceptionHandler {
         }
         if (code >= 4010 && code < 4030) {
             return HttpStatus.UNAUTHORIZED;
-        }
-        if (code >= 4090 && code < 4100) {
-            return HttpStatus.CONFLICT;
         }
         return HttpStatus.BAD_REQUEST;
     }

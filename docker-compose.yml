@@ -79,7 +79,7 @@ services:
           ATTEMPTS=$$((ATTEMPTS+1))
           HTTP_CODE=$$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 --max-time 3 "$$BASE_ENDPOINT" || true)
 
-          if [ "$$HTTP_CODE" != "000" ]; then
+          if [ "$$HTTP_CODE" -ge 200 ] && [ "$$HTTP_CODE" -lt 300 ]; then
             CONSECUTIVE_OK=$$((CONSECUTIVE_OK+1))
             echo "Readiness probe $$ATTEMPTS/$$MAX_ATTEMPTS: http_code=$$HTTP_CODE (ok streak $$CONSECUTIVE_OK/$$REQUIRED_OK)"
             if [ "$$CONSECUTIVE_OK" -ge "$$REQUIRED_OK" ]; then
@@ -87,7 +87,11 @@ services:
             fi
           else
             CONSECUTIVE_OK=0
-            echo "Readiness probe $$ATTEMPTS/$$MAX_ATTEMPTS: connection not ready"
+            if [ "$$HTTP_CODE" = "000" ]; then
+              echo "Readiness probe $$ATTEMPTS/$$MAX_ATTEMPTS: connection not ready"
+            else
+              echo "Readiness probe $$ATTEMPTS/$$MAX_ATTEMPTS: http_code=$$HTTP_CODE (not ready)"
+            fi
           fi
 
           sleep "$$SLEEP_SECONDS"

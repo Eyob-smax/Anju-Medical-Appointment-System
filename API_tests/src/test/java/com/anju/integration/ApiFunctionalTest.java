@@ -246,16 +246,16 @@ public class ApiFunctionalTest {
     @Test
     @Order(9)
     public void testFinanceMarkException_repeatReturns409() {
-        String transactionNo = "TX-EXC-REPEAT-" + System.currentTimeMillis();
+        String requestTransactionNo = "TX-EXC-REPEAT-" + System.currentTimeMillis();
         String createPayload = "{" +
-                "\"transactionNumber\":\"" + transactionNo + "\"," +
+                "\"transactionNumber\":\"" + requestTransactionNo + "\"," +
                 "\"amount\":55.00," +
                 "\"type\":\"PAYMENT\"," +
                 "\"currency\":\"USD\"," +
                 "\"remark\":\"repeat-exception\"" +
                 "}";
 
-        given()
+        Response createResponse = given()
             .auth().preemptive().basic(adminUsername, ADMIN_PASSWORD)
             .contentType(ContentType.JSON)
             .body(createPayload)
@@ -263,7 +263,10 @@ public class ApiFunctionalTest {
             .post("/finance/bookkeeping")
         .then()
             .statusCode(200)
-            .body("code", equalTo(0));
+            .body("code", equalTo(0))
+            .extract().response();
+
+        String transactionNo = createResponse.jsonPath().getString("data.transactionNo");
 
         String exceptionPayload = "{" +
                 "\"reason\":\"first mark\"" +
