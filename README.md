@@ -50,9 +50,10 @@ Then:
 1. Select the **Anju Local** environment.
 2. Update `username` and `password` values if needed.
 3. Run **Auth -> Login** to store the bearer `authorization` token.
-4. Run protected requests like **Property -> List Properties**.
+4. Run protected requests like **Property -> List Properties** or **Finance -> Daily Statement Export (JSON)**.
+5. Run **Auth -> Logout** to revoke the current bearer token.
 
-The collection pre-request script automatically injects `Authorization` for any route under `/api/*`:
+The collection pre-request script automatically injects `Authorization` for protected routes under `/api/*`, `/finance/*`, `/appointment/*`, `/file/*`, and `/auth/logout`:
 
 - Uses bearer token from the environment when present.
 - Falls back to HTTP Basic using `username` + `password` if bearer token is missing.

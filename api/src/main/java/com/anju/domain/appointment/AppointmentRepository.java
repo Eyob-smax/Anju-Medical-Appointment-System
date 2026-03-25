@@ -32,4 +32,22 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("endTime") java.time.LocalDateTime endTime,
             @Param("excludedStatus") String excludedStatus
     );
+
+        @Query("""
+          SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END
+          FROM Appointment a
+          WHERE a.id <> :excludeId
+            AND (a.staffId = :staffId OR a.resourceId = :resourceId)
+            AND a.status <> :excludedStatus
+            AND :startTime < a.endTime
+            AND :endTime > a.startTime
+          """)
+        boolean existsConflictExcludingId(
+          @Param("excludeId") Long excludeId,
+          @Param("staffId") Long staffId,
+          @Param("resourceId") Long resourceId,
+          @Param("startTime") java.time.LocalDateTime startTime,
+          @Param("endTime") java.time.LocalDateTime endTime,
+          @Param("excludedStatus") String excludedStatus
+        );
 }

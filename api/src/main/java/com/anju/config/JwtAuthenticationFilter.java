@@ -1,6 +1,7 @@
 package com.anju.config;
 
 import com.anju.domain.auth.JwtService;
+import com.anju.domain.auth.JwtTokenBlacklistService;
 import com.anju.domain.auth.User;
 import com.anju.domain.auth.UserRepository;
 import io.jsonwebtoken.JwtException;
@@ -22,10 +23,14 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final JwtTokenBlacklistService jwtTokenBlacklistService;
     private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
+    public JwtAuthenticationFilter(JwtService jwtService,
+                                   JwtTokenBlacklistService jwtTokenBlacklistService,
+                                   UserRepository userRepository) {
         this.jwtService = jwtService;
+        this.jwtTokenBlacklistService = jwtTokenBlacklistService;
         this.userRepository = userRepository;
     }
 
@@ -40,6 +45,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = authorizationHeader.substring(7);
+        if (jwtTokenBlacklistService.isRevoked(token)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         try {
             String username = jwtService.extractUsername(token);
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {

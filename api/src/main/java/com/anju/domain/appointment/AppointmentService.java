@@ -5,6 +5,7 @@ import com.anju.domain.auth.CurrentUserService;
 import com.anju.domain.auth.User;
 import com.anju.domain.appointment.dto.CreateAppointmentRequest;
 import com.anju.domain.appointment.dto.RescheduleAppointmentRequest;
+import com.anju.domain.appointment.dto.UpdateAppointmentRequest;
 import com.anju.domain.property.PropertyRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Sort;
@@ -104,9 +105,10 @@ public class AppointmentService {
         validateTimeRange(request.getStartTime(), request.getEndTime());
 
         // 4. Overlapping conflict
-        boolean conflict = appointmentRepository.existsConflict(
-                appointment.getStaffId(),
-                appointment.getResourceId(),
+        boolean conflict = appointmentRepository.existsConflictExcludingId(
+            appointment.getId(),
+            appointment.getStaffId(),
+            appointment.getResourceId(),
                 request.getStartTime(),
                 request.getEndTime(),
                 "CANCELLED"
@@ -121,6 +123,40 @@ public class AppointmentService {
         appointment.setStatus("RESCHEDULED");
 
         return appointmentRepository.save(appointment);
+    }
+
+    public Appointment update(Long id, UpdateAppointmentRequest request) {
+        Appointment appointment = getById(id);
+        enforceAppointmentAccess(appointment);
+
+        validateTimeRange(request.getStartTime(), request.getEndTime());
+        if (!propertyRepository.existsById(request.getResourceId())) {
+            throw new BusinessException(4041, "Resource property does not exist.");
+        }
+
+        boolean conflict = appointmentRepository.existsConflictExcludingId(
+                appointment.getId(),
+                request.getStaffId(),
+                request.getResourceId(),
+                request.getStartTime(),
+                request.getEndTime(),
+                "CANCELLED"
+        );
+        if (conflict) {
+            throw new BusinessException(4006, "Appointment time conflicts with existing schedule.");
+        }
+
+        appointment.setStaffId(request.getStaffId());
+        appointment.setResourceId(request.getResourceId());
+        appointment.setStartTime(request.getStartTime());
+        appointment.setEndTime(request.getEndTime());
+        return appointmentRepository.save(appointment);
+    }
+
+    public void delete(Long id) {
+        Appointment appointment = getById(id);
+        enforceAppointmentAccess(appointment);
+        appointmentRepository.delete(appointment);
     }
 
     public void cancel(Long id) {

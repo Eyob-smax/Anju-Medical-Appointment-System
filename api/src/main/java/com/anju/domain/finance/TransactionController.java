@@ -16,8 +16,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -115,22 +113,10 @@ public class TransactionController {
 
     @GetMapping("/statements/daily/export")
     @PreAuthorize("hasAnyRole('ADMIN','FINANCE','AUDITOR')")
-    @Operation(summary = "Export daily statement as CSV")
-    public ResponseEntity<String> dailyStatementExport(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+    @Operation(summary = "Export daily statement as JSON")
+    public Result<Map<String, Object>> dailyStatementExport(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         Map<String, Object> statement = transactionService.dailyStatement(date);
-        String csv = "date,paymentCount,paymentTotal,refundCount,refundTotal,exceptionCount,exceptionAmount,netAmount\n"
-                + statement.get("date") + ","
-                + statement.get("paymentCount") + ","
-                + statement.get("paymentTotal") + ","
-                + statement.get("refundCount") + ","
-                + statement.get("refundTotal") + ","
-                + statement.get("exceptionCount") + ","
-                + statement.get("exceptionAmount") + ","
-                + statement.get("netAmount") + "\n";
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=statement-" + date + ".csv")
-                .contentType(MediaType.TEXT_PLAIN)
-                .body(csv);
+        return Result.success(statement);
     }
 
     @Auditable(module = "FINANCE", action = "Mark transaction exception")

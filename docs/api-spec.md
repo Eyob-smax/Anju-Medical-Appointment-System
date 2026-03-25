@@ -29,6 +29,11 @@ Errors return non-zero `code` values with appropriate HTTP status mapping and an
 **Endpoint:** `POST /auth/verify-secondary`
 **Description:** Validates the secondary password required by sensitive operations.
 
+### 4. Logout
+
+**Endpoint:** `POST /auth/logout`
+**Description:** Revokes current bearer token so it cannot be reused.
+
 ---
 
 ## Property API
@@ -113,6 +118,16 @@ Errors return non-zero `code` values with appropriate HTTP status mapping and an
 **Endpoint:** `PUT /appointment/{id}/cancel`
 **Description:** Cancels appointment and applies late-cancel penalty cap when within 24 hours.
 
+### 4. Update Appointment
+
+**Endpoint:** `PUT /appointment/{id}`
+**Description:** Updates appointment scheduling fields (staff/resource/time) with conflict checks.
+
+### 5. Delete Appointment
+
+**Endpoint:** `DELETE /appointment/{id}`
+**Description:** Deletes an appointment record.
+
 ---
 
 ## Finance API
@@ -152,7 +167,7 @@ Errors return non-zero `code` values with appropriate HTTP status mapping and an
 ### 6. Daily Statement Export
 
 **Endpoint:** `GET /finance/statements/daily/export?date=YYYY-MM-DD`
-**Description:** Exports the daily statement as CSV attachment.
+**Description:** Returns the daily statement export in JSON format.
 
 ### 7. Mark Transaction Exception
 

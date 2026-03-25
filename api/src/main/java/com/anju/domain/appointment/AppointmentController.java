@@ -5,6 +5,7 @@ import com.anju.common.Result;
 import com.anju.domain.appointment.dto.AppointmentResponse;
 import com.anju.domain.appointment.dto.CreateAppointmentRequest;
 import com.anju.domain.appointment.dto.RescheduleAppointmentRequest;
+import com.anju.domain.appointment.dto.UpdateAppointmentRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -49,6 +50,17 @@ public class AppointmentController {
         return ResponseEntity.ok(Result.success("Appointment rescheduled.", AppointmentResponse.fromEntity(appointment)));
     }
 
+    @Auditable(module = "APPOINTMENT", action = "Update appointment")
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','SCHEDULER')")
+    @Operation(summary = "Update appointment")
+    public ResponseEntity<Result<AppointmentResponse>> update(
+            @PathVariable @Positive Long id,
+            @Valid @RequestBody UpdateAppointmentRequest request) {
+        Appointment updated = appointmentService.update(id, request);
+        return ResponseEntity.ok(Result.success("Appointment updated.", AppointmentResponse.fromEntity(updated)));
+    }
+
     @Auditable(module = "APPOINTMENT", action = "Cancel appointment")
     @PutMapping("/{id}/cancel")
     @PreAuthorize("hasAnyRole('ADMIN','SCHEDULER','STAFF')")
@@ -56,6 +68,15 @@ public class AppointmentController {
     public ResponseEntity<Result<Void>> cancel(@PathVariable @Positive Long id) {
         appointmentService.cancel(id);
         return ResponseEntity.ok(Result.success("Appointment cancelled.", null));
+    }
+
+    @Auditable(module = "APPOINTMENT", action = "Delete appointment")
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','SCHEDULER')")
+    @Operation(summary = "Delete appointment")
+    public ResponseEntity<Result<Void>> delete(@PathVariable @Positive Long id) {
+        appointmentService.delete(id);
+        return ResponseEntity.ok(Result.success("Appointment deleted.", null));
     }
 
     @GetMapping("/{id}")

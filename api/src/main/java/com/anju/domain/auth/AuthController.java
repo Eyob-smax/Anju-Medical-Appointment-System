@@ -18,10 +18,14 @@ public class AuthController {
 
     private final AuthService authService;
     private final JwtService jwtService;
+    private final JwtTokenBlacklistService jwtTokenBlacklistService;
 
-    public AuthController(AuthService authService, JwtService jwtService) {
+    public AuthController(AuthService authService,
+                          JwtService jwtService,
+                          JwtTokenBlacklistService jwtTokenBlacklistService) {
         this.authService = authService;
         this.jwtService = jwtService;
+        this.jwtTokenBlacklistService = jwtTokenBlacklistService;
     }
 
     @PostMapping("/register")
@@ -48,6 +52,17 @@ public class AuthController {
                 "expiresInSeconds", jwtService.getExpirationSeconds(),
                 "message", "Login success. Send the bearer token in protected requests."
         ));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Logout", description = "Revokes current bearer token so it cannot be reused.")
+    public Result<Map<String, Object>> logout(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            String token = authorizationHeader.substring(7);
+            jwtTokenBlacklistService.revoke(token, jwtService.extractExpiration(token));
+        }
+        return Result.success(Map.of("loggedOut", true));
     }
 
     @GetMapping("/me")
