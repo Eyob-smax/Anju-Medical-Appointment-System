@@ -1,5 +1,14 @@
 package com.anju.domain.file;
 
+import com.anju.domain.file.dto.FileUploadRequest;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
 import com.anju.common.BusinessException;
 import com.anju.domain.auth.CurrentUserService;
 import com.anju.domain.auth.User;
@@ -52,6 +61,45 @@ public class FileService {
         }
         enforceFileAccess(found.get(), currentUser);
         return found.get();
+    }
+
+    @Transactional
+    public SysFile uploadFile(FileUploadRequest request) {
+        User currentUser = currentUserService.requireCurrentUser();
+        MultipartFile file = request.getFile();
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(400, "File is empty");
+        }
+
+        String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "uploaded_file.pdf";
+        String fileHash = request.getHash() != null ? request.getHash() : UUID.randomUUID().toString().replace("-", "");
+        
+        File uploadDir = new File("uploads");
+        if (!uploadDir.exists()) {
+            uploadDir.mkdirs();
+        }
+        
+        try {
+            Path targetPath = uploadDir.toPath().resolve(fileHash + "_" + fileName);
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+            
+            SysFile sysFile = new SysFile();
+            sysFile.setHash(fileHash);
+            sysFile.setChunks(1);
+            sysFile.setVersion(1);
+            sysFile.setFileName(fileName);
+            sysFile.setContentType(file.getContentType() != null ? file.getContentType() : "application/pdf");
+            sysFile.setSizeBytes(file.getSize());
+            sysFile.setUploadedBy(currentUser.getId());
+            sysFile.setStoragePath(targetPath.toAbsolutePath().toString());
+            sysFile.setExpiresAt(resolveExpiresAt(request.getExpiresAt()));
+            
+            return sysFileRepository.save(sysFile);
+            
+        } catch (IOException e) {
+            log.error("Failed to store file: ", e);
+            throw new BusinessException(500, "Failed to upload file");
+        }
     }
 
     @Transactional

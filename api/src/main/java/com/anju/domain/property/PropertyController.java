@@ -69,7 +69,7 @@ public class PropertyController {
         return ResponseEntity.ok(Result.success(PropertyResponse.fromEntity(property)));
     }
 
-    @GetMapping
+    @GetMapping({"", "/"})
     @PreAuthorize("hasAnyRole('ADMIN','OPERATOR','REVIEWER','STAFF')")
     @Operation(summary = "List properties")
     public ResponseEntity<Result<List<PropertyResponse>>> list(

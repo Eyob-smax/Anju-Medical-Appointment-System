@@ -1,0 +1,423 @@
+{
+  "baseUrl": "http://localhost:8080",
+  "auth": {
+    "type": "Bearer",
+    "header": "Authorization: Bearer <token>",
+    "secondaryHeader": "X-Secondary-Password: <secondaryPassword>"
+  },
+  "testUsers": {
+    "admin": {
+      "username": "admin_demo",
+      "password": "Admin1234",
+      "displayName": "Admin Demo",
+      "email": "admin@anju.local",
+      "phone": "+251911000000",
+      "role": "ADMIN",
+      "secondaryPassword": "Admin5678"
+    },
+    "finance": {
+      "username": "finance_demo",
+      "password": "Finance1234",
+      "displayName": "Finance Demo",
+      "email": "finance@anju.local",
+      "phone": "+251922000000",
+      "role": "FINANCE",
+      "secondaryPassword": "Finance5678"
+    },
+    "staff": {
+      "username": "staff_demo",
+      "password": "Staff1234",
+      "displayName": "Staff Demo",
+      "email": "staff@anju.local",
+      "phone": "+251933000000",
+      "role": "STAFF",
+      "secondaryPassword": "Staff5678"
+    }
+  },
+  "endpoints": [
+    {
+      "domain": "auth",
+      "method": "POST",
+      "path": "/auth/register",
+      "authRequired": false,
+      "sampleBody": {
+        "username": "admin_demo",
+        "password": "Admin1234",
+        "displayName": "Admin Demo",
+        "email": "admin@anju.local",
+        "phone": "+251911000000",
+        "role": "ADMIN",
+        "secondaryPassword": "Admin5678"
+      }
+    },
+    {
+      "domain": "auth",
+      "method": "POST",
+      "path": "/auth/login",
+      "authRequired": false,
+      "sampleBody": {
+        "username": "admin_demo",
+        "password": "Admin1234"
+      }
+    },
+    {
+      "domain": "auth",
+      "method": "POST",
+      "path": "/auth/logout",
+      "authRequired": true,
+      "sampleBody": null
+    },
+    {
+      "domain": "auth",
+      "method": "GET",
+      "path": "/auth/me",
+      "authRequired": true
+    },
+    {
+      "domain": "auth",
+      "method": "POST",
+      "path": "/auth/verify-secondary",
+      "authRequired": true,
+      "requiredHeaders": ["X-Secondary-Password"]
+    },
+    {
+      "domain": "property",
+      "method": "POST",
+      "path": "/api/properties",
+      "authRequired": true,
+      "sampleBody": {
+        "code": "PROP-ANJU-001",
+        "status": "AVAILABLE",
+        "rent": 1200.0,
+        "deposit": 2400.0,
+        "startDate": "2026-04-01T09:00:00",
+        "endDate": "2026-12-31T18:00:00",
+        "complianceStatus": "PENDING",
+        "mediaRefs": ["https://example.com/property-1-photo.jpg"]
+      }
+    },
+    {
+      "domain": "property",
+      "method": "GET",
+      "path": "/api/properties/{id}",
+      "authRequired": true
+    },
+    {
+      "domain": "property",
+      "method": "GET",
+      "path": "/api/properties",
+      "authRequired": true
+    },
+    {
+      "domain": "property",
+      "method": "PUT",
+      "path": "/api/properties/{id}",
+      "authRequired": true,
+      "sampleBody": {
+        "status": "AVAILABLE",
+        "rent": 1300.0,
+        "deposit": 2600.0,
+        "complianceStatus": "PENDING"
+      }
+    },
+    {
+      "domain": "property",
+      "method": "DELETE",
+      "path": "/api/properties/{id}",
+      "authRequired": true
+    },
+    {
+      "domain": "property",
+      "method": "PATCH",
+      "path": "/api/properties/{id}/list",
+      "authRequired": true
+    },
+    {
+      "domain": "property",
+      "method": "PATCH",
+      "path": "/api/properties/{id}/delist",
+      "authRequired": true
+    },
+    {
+      "domain": "property",
+      "method": "PATCH",
+      "path": "/api/properties/{id}/compliance-review",
+      "authRequired": true,
+      "requiredHeaders": ["X-Secondary-Password"],
+      "sampleBody": {
+        "complianceStatus": "APPROVED",
+        "comment": "All required documents verified"
+      }
+    },
+    {
+      "domain": "appointment",
+      "method": "POST",
+      "path": "/appointment",
+      "authRequired": true,
+      "optionalHeaders": ["X-Idempotency-Key"],
+      "sampleBody": {
+        "number": "APPT-DEMO-001",
+        "staffId": 3,
+        "resourceId": 1,
+        "startTime": "2026-04-05T10:00:00",
+        "endTime": "2026-04-05T10:30:00"
+      }
+    },
+    {
+      "domain": "appointment",
+      "method": "PUT",
+      "path": "/appointment/reschedule",
+      "authRequired": true,
+      "sampleBody": {
+        "appointmentId": 1,
+        "startTime": "2026-04-06T11:00:00",
+        "endTime": "2026-04-06T11:30:00"
+      }
+    },
+    {
+      "domain": "appointment",
+      "method": "PUT",
+      "path": "/appointment/{id}",
+      "authRequired": true,
+      "sampleBody": {
+        "staffId": 3,
+        "resourceId": 1,
+        "startTime": "2026-04-06T14:00:00",
+        "endTime": "2026-04-06T14:30:00"
+      }
+    },
+    {
+      "domain": "appointment",
+      "method": "PUT",
+      "path": "/appointment/{id}/cancel",
+      "authRequired": true
+    },
+    {
+      "domain": "appointment",
+      "method": "DELETE",
+      "path": "/appointment/{id}",
+      "authRequired": true
+    },
+    {
+      "domain": "appointment",
+      "method": "GET",
+      "path": "/appointment/{id}",
+      "authRequired": true
+    },
+    {
+      "domain": "appointment",
+      "method": "GET",
+      "path": "/appointment",
+      "authRequired": true
+    },
+    {
+      "domain": "finance",
+      "method": "POST",
+      "path": "/finance/bookkeeping",
+      "authRequired": true,
+      "optionalHeaders": ["X-Idempotency-Key"],
+      "sampleBody": {
+        "transactionNumber": "TX-DEMO-1001",
+        "appointmentId": 1,
+        "payerId": 3,
+        "amount": 120.5,
+        "type": "PAYMENT",
+        "currency": "USD",
+        "remark": "Initial appointment payment",
+        "channel": "MANUAL",
+        "refundable": true
+      }
+    },
+    {
+      "domain": "finance",
+      "method": "POST",
+      "path": "/finance/import/bookkeeping",
+      "authRequired": true,
+      "sampleBody": {
+        "fieldMapping": {
+          "transactionNumber": "tx_no",
+          "amount": "amt",
+          "type": "kind",
+          "occurredAt": "occurred_at"
+        },
+        "idempotencyKeyPrefix": "import-demo-20260325",
+        "rows": [
+          {
+            "tx_no": "TX-IMP-2001",
+            "amt": "95.75",
+            "kind": "PAYMENT",
+            "occurred_at": "2026-03-25T10:15:30",
+            "currency": "USD"
+          }
+        ]
+      }
+    },
+    {
+      "domain": "finance",
+      "method": "POST",
+      "path": "/finance",
+      "authRequired": true,
+      "requiredHeaders": ["X-Secondary-Password"],
+      "optionalHeaders": ["X-Idempotency-Key"],
+      "sampleBody": {
+        "transactionNumber": "TX-DEMO-1002",
+        "appointmentId": 1,
+        "payerId": 3,
+        "amount": 50.0,
+        "type": "PAYMENT",
+        "currency": "USD",
+        "remark": "Top up",
+        "channel": "MANUAL",
+        "refundable": true
+      }
+    },
+    {
+      "domain": "finance",
+      "method": "GET",
+      "path": "/finance/{transactionNo}",
+      "authRequired": true
+    },
+    {
+      "domain": "finance",
+      "method": "GET",
+      "path": "/finance",
+      "authRequired": true
+    },
+    {
+      "domain": "finance",
+      "method": "POST",
+      "path": "/finance/{transactionNo}/refund",
+      "authRequired": true,
+      "sampleBody": {
+        "amount": 20.0,
+        "reason": "Customer requested partial refund"
+      }
+    },
+    {
+      "domain": "finance",
+      "method": "POST",
+      "path": "/finance/settlements/daily",
+      "authRequired": true,
+      "sampleBody": {
+        "date": "2026-03-25"
+      }
+    },
+    {
+      "domain": "finance",
+      "method": "GET",
+      "path": "/finance/statements/daily?date=2026-03-25",
+      "authRequired": true
+    },
+    {
+      "domain": "finance",
+      "method": "GET",
+      "path": "/finance/statements/daily/export?date=2026-03-25",
+      "authRequired": true,
+      "returns": "json"
+    },
+    {
+      "domain": "finance",
+      "method": "POST",
+      "path": "/finance/{transactionNo}/exception",
+      "authRequired": true,
+      "sampleBody": {
+        "reason": "Manual reconciliation mismatch"
+      }
+    },
+    {
+      "domain": "finance",
+      "method": "POST",
+      "path": "/finance/{transactionNo}/invoice/request",
+      "authRequired": true
+    },
+    {
+      "domain": "finance",
+      "method": "POST",
+      "path": "/finance/{transactionNo}/invoice/issue",
+      "authRequired": true,
+      "requiredHeaders": ["X-Secondary-Password"],
+      "sampleBody": {
+        "invoiceNo": "INV-2026-0001"
+      }
+    },
+    {
+      "domain": "file",
+      "method": "GET",
+      "path": "/file/check?hash=<sha256>",
+      "authRequired": true
+    },
+    {
+      "domain": "file",
+      "method": "POST",
+      "path": "/file/upload",
+      "authRequired": true,
+      "sampleBody": {
+        "hash": "b1946ac92492d2347c6235b4d2611184",
+        "fileName": "medical-report.pdf",
+        "contentType": "application/pdf",
+        "sizeBytes": 1048576,
+        "chunks": 4,
+        "currentChunk": 1,
+        "expiresAt": "2026-04-20T10:00:00"
+      }
+    },
+    {
+      "domain": "file",
+      "method": "GET",
+      "path": "/file/{id}",
+      "authRequired": true
+    },
+    {
+      "domain": "file",
+      "method": "GET",
+      "path": "/file",
+      "authRequired": true
+    },
+    {
+      "domain": "file",
+      "method": "DELETE",
+      "path": "/file/{id}",
+      "authRequired": true
+    },
+    {
+      "domain": "file",
+      "method": "POST",
+      "path": "/file/{id}/restore",
+      "authRequired": true
+    },
+    {
+      "domain": "file",
+      "method": "GET",
+      "path": "/file/recycle-bin",
+      "authRequired": true
+    },
+    {
+      "domain": "file",
+      "method": "POST",
+      "path": "/file/{hash}/rollback/{targetVersion}",
+      "authRequired": true
+    },
+    {
+      "domain": "file",
+      "method": "GET",
+      "path": "/file/{id}/preview",
+      "authRequired": true
+    },
+    {
+      "domain": "file",
+      "method": "GET",
+      "path": "/file/{id}/content",
+      "authRequired": true
+    }
+  ],
+  "executionOrder": [
+    "POST /auth/register",
+    "POST /auth/login",
+    "POST /api/properties",
+    "POST /appointment",
+    "POST /finance/bookkeeping",
+    "GET /finance/statements/daily/export?date=2026-03-25",
+    "POST /file/upload",
+    "POST /auth/logout"
+  ]
+}

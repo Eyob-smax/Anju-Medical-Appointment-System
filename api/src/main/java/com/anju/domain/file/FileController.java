@@ -2,10 +2,13 @@ package com.anju.domain.file;
 
 import com.anju.common.Result;
 import com.anju.domain.file.dto.ChunkUploadRequest;
+import com.anju.domain.file.dto.FileUploadRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 import java.util.List;
 import java.util.Map;
@@ -19,6 +22,19 @@ public class FileController {
 
     public FileController(FileService fileService) {
         this.fileService = fileService;
+    }
+
+    @PostMapping(value = "/upload-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF','OPERATOR')")
+    @Operation(summary = "Upload a real file")
+    public Result<SysFile> uploadFile(@RequestParam("file") MultipartFile file, 
+                                      @RequestParam(value = "hash", required = false) String hash,
+                                      @RequestParam(value = "expiresAt", required = false) java.time.LocalDateTime expiresAt) {
+        FileUploadRequest request = new FileUploadRequest();
+        request.setFile(file);
+        request.setHash(hash);
+        request.setExpiresAt(expiresAt);
+        return Result.success(fileService.uploadFile(request));
     }
 
     @GetMapping("/check")
