@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -53,6 +54,24 @@ public class GlobalExceptionHandler {
         String message = String.format("Parameter '%s' must be a valid %s.", ex.getName(), targetType);
         Result<Void> result = Result.fail(4003, message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Result<Void>> handleNoResourceFoundException(NoResourceFoundException ex) {
+        Result<Void> result = Result.fail(4040, "Endpoint not found.");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(result);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Result<Void>> handleHttpRequestMethodNotSupportedException(org.springframework.web.HttpRequestMethodNotSupportedException ex) {
+        Result<Void> result = Result.fail(4050, "Method not allowed: " + ex.getMethod());
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(result);
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Result<Void>> handleAccessDeniedException(org.springframework.security.access.AccessDeniedException ex) {
+        Result<Void> result = Result.fail(4030, "Access Denied.");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(result);
     }
 
     @ExceptionHandler(Exception.class)
