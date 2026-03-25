@@ -49,7 +49,10 @@ Then:
 
 1. Select the **Anju Local** environment.
 2. Update `username` and `password` values if needed.
-3. Run **Auth -> Login** (optional check).
+3. Run **Auth -> Login** to store the bearer `authorization` token.
 4. Run protected requests like **Property -> List Properties**.
 
-The collection pre-request script automatically injects HTTP Basic `Authorization` for any route under `/api/*`, so you do not need to manually add the header on each protected request.
+The collection pre-request script automatically injects `Authorization` for any route under `/api/*`:
+
+- Uses bearer token from the environment when present.
+- Falls back to HTTP Basic using `username` + `password` if bearer token is missing.

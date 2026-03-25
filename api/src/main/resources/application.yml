@@ -54,3 +54,8 @@ file:
     min-chunk-interval-ms: ${FILE_UPLOAD_MIN_CHUNK_INTERVAL_MS:150}
   retention:
     default-days: ${FILE_RETENTION_DEFAULT_DAYS:30}
+
+security:
+  jwt:
+    secret: ${SECURITY_JWT_SECRET:anju-medical-appointment-system-secret-key-2026}
+    expiration-seconds: ${SECURITY_JWT_EXPIRATION_SECONDS:86400}

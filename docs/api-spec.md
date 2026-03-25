@@ -22,7 +22,7 @@ Errors return non-zero `code` values with appropriate HTTP status mapping and an
 ### 2. Login
 
 **Endpoint:** `POST /auth/login`
-**Description:** Validates credentials and updates last-login timestamp. Protected routes use HTTP Basic auth.
+**Description:** Validates credentials and updates last-login timestamp. Returns a JWT bearer token for protected routes.
 
 ### 3. Verify Secondary Password
 

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Anju Medical Appointment System",
-    "description": "Starter collection with automatic HTTP Basic Authorization for protected /api/* routes.",
+    "description": "Starter collection with automatic Bearer Authorization for protected /api/* routes.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_postman_id": "b7a6f7bf-1f2b-42be-a2f2-f7f4f7e0af11"
   },
@@ -13,13 +13,18 @@
         "exec": [
           "const path = pm.request.url.getPath();",
           "if (path.startsWith('/api/')) {",
-          "  const username = pm.environment.get('username');",
-          "  const password = pm.environment.get('password');",
-          "  if (!username || !password) {",
-          "    throw new Error('Set username and password in the environment first.');",
+          "  const authorization = pm.environment.get('authorization');",
+          "  if (authorization) {",
+          "    pm.request.headers.upsert({ key: 'Authorization', value: authorization });",
+          "  } else {",
+          "    const username = pm.environment.get('username');",
+          "    const password = pm.environment.get('password');",
+          "    if (!username || !password) {",
+          "      throw new Error('Run Auth -> Login first, or set username/password for Basic fallback.');",
+          "    }",
+          "    const authValue = 'Basic ' + btoa(username + ':' + password);",
+          "    pm.request.headers.upsert({ key: 'Authorization', value: authValue });",
           "  }",
-          "  const authValue = 'Basic ' + btoa(username + ':' + password);",
-          "  pm.request.headers.upsert({ key: 'Authorization', value: authValue });",
           "}"
         ]
       }
