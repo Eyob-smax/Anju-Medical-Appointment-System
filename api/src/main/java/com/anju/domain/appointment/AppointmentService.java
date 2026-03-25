@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
@@ -23,6 +24,8 @@ import java.util.concurrent.ThreadLocalRandom;
 public class AppointmentService {
 
     private static final DateTimeFormatter NUMBER_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final Set<String> RESCHEDULABLE_STATUSES = Set.of("PENDING", "CONFIRMED", "RESCHEDULED");
+    private static final Set<String> CANCELLABLE_STATUSES = Set.of("PENDING", "CONFIRMED", "RESCHEDULED");
     private final AppointmentRepository appointmentRepository;
     private final PropertyRepository propertyRepository;
     private final CurrentUserService currentUserService;
@@ -73,9 +76,10 @@ public class AppointmentService {
         appointment.setResourceId(request.getResourceId());
         appointment.setStartTime(request.getStartTime());
         appointment.setEndTime(request.getEndTime());
-        appointment.setStatus(normalizeOrDefault(request.getStatus(), "PENDING"));
-        appointment.setPenalty(request.getPenalty() == null ? BigDecimal.ZERO : request.getPenalty());
-        appointment.setRescheduleCount(request.getRescheduleCount() == null ? 0 : request.getRescheduleCount());
+        // Lifecycle fields are server-controlled to keep state machine behavior consistent.
+        appointment.setStatus("PENDING");
+        appointment.setPenalty(BigDecimal.ZERO);
+        appointment.setRescheduleCount(0);
         appointment.setIdempotencyKey(StringUtils.hasText(idempotencyKey) ? idempotencyKey.trim() : null);
         return appointmentRepository.save(appointment);
     }
@@ -83,6 +87,7 @@ public class AppointmentService {
     public Appointment reschedule(Long id, RescheduleAppointmentRequest request) {
         Appointment appointment = getById(id);
         enforceAppointmentAccess(appointment);
+        ensureReschedulable(appointment);
         
         // 1. Must be at least 24 hours in advance
         LocalDateTime now = LocalDateTime.now();
@@ -121,6 +126,7 @@ public class AppointmentService {
     public void cancel(Long id) {
         Appointment appointment = getById(id);
         enforceAppointmentAccess(appointment);
+        ensureCancellable(appointment);
         LocalDateTime now = LocalDateTime.now();
         
         if (ChronoUnit.HOURS.between(now, appointment.getStartTime()) < 24) {
@@ -199,5 +205,19 @@ public class AppointmentService {
 
     private String normalizeOrDefault(String value, String defaultValue) {
         return StringUtils.hasText(value) ? value.trim().toUpperCase() : defaultValue;
+    }
+
+    private void ensureReschedulable(Appointment appointment) {
+        String status = normalizeOrDefault(appointment.getStatus(), "PENDING");
+        if (!RESCHEDULABLE_STATUSES.contains(status)) {
+            throw new BusinessException(4013, "Only PENDING/CONFIRMED/RESCHEDULED appointments can be rescheduled.");
+        }
+    }
+
+    private void ensureCancellable(Appointment appointment) {
+        String status = normalizeOrDefault(appointment.getStatus(), "PENDING");
+        if (!CANCELLABLE_STATUSES.contains(status)) {
+            throw new BusinessException(4014, "Only PENDING/CONFIRMED/RESCHEDULED appointments can be cancelled.");
+        }
     }
 }

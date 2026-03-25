@@ -186,10 +186,19 @@ public class FileService {
         String mode;
         if (contentType.startsWith("image/")) {
             mode = "image";
+        } else if (contentType.startsWith("audio/")) {
+            mode = "audio";
+        } else if (contentType.startsWith("video/")) {
+            mode = "video";
         } else if (contentType.contains("pdf")) {
             mode = "pdf";
         } else if (contentType.startsWith("text/")) {
             mode = "text";
+        } else if (contentType.contains("word")
+                || contentType.contains("excel")
+                || contentType.contains("powerpoint")
+                || contentType.contains("officedocument")) {
+            mode = "document";
         } else {
             throw new BusinessException(4009, "Preview is not supported for this file type.");
         }

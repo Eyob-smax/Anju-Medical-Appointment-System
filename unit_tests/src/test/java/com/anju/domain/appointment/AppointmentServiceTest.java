@@ -15,9 +15,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -164,5 +166,45 @@ class AppointmentServiceTest {
 
         assertEquals(99L, result.getId());
         verify(appointmentRepository, never()).save(any(Appointment.class));
+    }
+
+    @Test
+    void testCreate_serverControlsLifecycleFields() {
+        when(propertyRepository.existsById(20L)).thenReturn(true);
+        when(appointmentRepository.existsConflict(anyLong(), anyLong(), any(), any(), eq("CANCELLED"))).thenReturn(false);
+        when(appointmentRepository.existsByNumber("APPT-CUSTOM")).thenReturn(false);
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CreateAppointmentRequest request = new CreateAppointmentRequest();
+        request.setNumber("appt-custom");
+        request.setStaffId(10L);
+        request.setResourceId(20L);
+        request.setStartTime(LocalDateTime.now().plusDays(2));
+        request.setEndTime(LocalDateTime.now().plusDays(2).plusMinutes(30));
+        request.setStatus("COMPLETED");
+        request.setPenalty(new BigDecimal("88.88"));
+        request.setRescheduleCount(2);
+
+        Appointment result = appointmentService.create(request, null);
+
+        assertEquals("PENDING", result.getStatus());
+        assertEquals(BigDecimal.ZERO, result.getPenalty());
+        assertEquals(0, result.getRescheduleCount());
+    }
+
+    @Test
+    void testReschedule_releasedAppointment_throwsException() {
+        existingAppointment.setStatus("RELEASED");
+        existingAppointment.setStartTime(LocalDateTime.now().plusDays(2));
+        existingAppointment.setEndTime(LocalDateTime.now().plusDays(2).plusHours(1));
+        when(appointmentRepository.findById(1L)).thenReturn(Optional.of(existingAppointment));
+
+        RescheduleAppointmentRequest request = new RescheduleAppointmentRequest();
+        request.setStartTime(LocalDateTime.now().plusDays(3));
+        request.setEndTime(LocalDateTime.now().plusDays(3).plusHours(1));
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> appointmentService.reschedule(1L, request));
+
+        assertEquals(4013, exception.getCode());
     }
 }
