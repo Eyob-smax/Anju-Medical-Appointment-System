@@ -69,8 +69,10 @@ services:
       - anju-backend
     environment:
       API_BASE_URL: http://anju-backend
+      MAVEN_OPTS: "-Dmaven.wagon.http.retryHandler.count=5"
     volumes:
       - ./:/workspace
+      - maven_cache:/root/.m2
     working_dir: /workspace
     command:
       - sh
@@ -118,13 +120,13 @@ services:
 
         echo "API is up! Running Unit Tests..."
         cd backend/unit_tests
-        mvn clean test
+        mvn -B clean test
         UNIT_TEST_STATUS=$$?
         cd ../..
 
         echo "Running API Functional Tests..."
         cd backend/API_tests
-        mvn clean test
+        mvn -B clean test
         API_TEST_STATUS=$$?
         cd ..
 
@@ -138,3 +140,4 @@ services:
 
 volumes:
   mysql_data:
+  maven_cache:

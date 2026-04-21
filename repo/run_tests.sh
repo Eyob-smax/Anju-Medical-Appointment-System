@@ -5,6 +5,9 @@ echo "========================================="
 echo " Starting Dockerized Test Environment    "
 echo "========================================="
 
+PROJECT_NAME="${COMPOSE_PROJECT_NAME:-$(basename "$PWD")}"
+MYSQL_VOLUME="${PROJECT_NAME}_mysql_data"
+
 # Setup .env file if it doesn't exist
 if [ ! -f .env ]; then
     echo "Creating .env file from .env.example..."
@@ -30,7 +33,8 @@ echo ".env file configured successfully"
 
 # Pull down any old containers
 echo "Cleaning up old containers..."
-docker compose --profile test down -v
+docker compose --profile test down
+docker volume rm "$MYSQL_VOLUME" >/dev/null 2>&1 || true
 
 # Run the test-runner container, aborting and failing if it fails
 echo "Starting test containers..."
@@ -41,7 +45,8 @@ set -e
 
 # Clean up
 echo "Cleaning up test containers..."
-docker compose --profile test down -v
+docker compose --profile test down
+docker volume rm "$MYSQL_VOLUME" >/dev/null 2>&1 || true
 
 echo "========================================="
 if [ $TEST_STATUS -eq 0 ]; then
