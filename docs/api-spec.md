@@ -34,6 +34,11 @@ Errors return non-zero `code` values with appropriate HTTP status mapping and an
 **Endpoint:** `POST /auth/logout`
 **Description:** Revokes current bearer token so it cannot be reused.
 
+### 5. Current User
+
+**Endpoint:** `GET /auth/me`
+**Description:** Returns the current authenticated username.
+
 ---
 
 ## Property API
@@ -71,6 +76,16 @@ Errors return non-zero `code` values with appropriate HTTP status mapping and an
   "reviewerNotes": "Passed all checks."
 }
 ```
+
+### 3. Property Queries
+
+**Endpoints:**
+
+- `GET /api/properties`
+- `GET /api/properties/{id}`
+- `GET /api/properties/code/{code}`
+
+**Description:** Lists properties or fetches a property by id/code with role-based access control.
 
 ---
 
@@ -128,6 +143,15 @@ Errors return non-zero `code` values with appropriate HTTP status mapping and an
 **Endpoint:** `DELETE /appointment/{id}`
 **Description:** Deletes an appointment record.
 
+### 6. Appointment Queries
+
+**Endpoints:**
+
+- `GET /appointment`
+- `GET /appointment/{id}`
+
+**Description:** Lists appointments or fetches an appointment by id.
+
 ---
 
 ## Finance API
@@ -167,7 +191,7 @@ Errors return non-zero `code` values with appropriate HTTP status mapping and an
 ### 6. Daily Statement Export
 
 **Endpoint:** `GET /finance/statements/daily/export?date=YYYY-MM-DD`
-**Description:** Returns the daily statement export in JSON format.
+**Description:** Returns the daily statement export in CSV format.
 
 ### 7. Mark Transaction Exception
 
@@ -188,7 +212,16 @@ Errors return non-zero `code` values with appropriate HTTP status mapping and an
 - `POST /finance/{transactionNo}/invoice/request`
 - `POST /finance/{transactionNo}/invoice/issue`
 
-### 9. Bookkeeping Import (Field Mapping + Type Validation)
+### 9. Finance Queries
+
+**Endpoints:**
+
+- `GET /finance`
+- `GET /finance/{transactionNo}`
+
+**Description:** Lists transactions or fetches a transaction by transaction number.
+
+### 10. Bookkeeping Import (Field Mapping + Type Validation)
 
 **Endpoint:** `POST /finance/import/bookkeeping`
 **Description:** Imports bookkeeping rows with optional field mapping, required/enum/number validation, ISO-8601 datetime validation (`occurredAt`), and idempotency-safe persistence by generated row keys.
@@ -228,7 +261,12 @@ Errors return non-zero `code` values with appropriate HTTP status mapping and an
 - `GET /file/check?hash=...`
 - `POST /file/upload`
 
-### 2. Lifecycle Management
+### 2. Direct Multipart Upload
+
+**Endpoint:** `POST /file/upload-file`
+**Description:** Uploads a real file using `multipart/form-data` with optional hash and expiration time.
+
+### 3. Lifecycle Management
 
 **Endpoints:**
 
@@ -239,7 +277,7 @@ Errors return non-zero `code` values with appropriate HTTP status mapping and an
 - `GET /file/recycle-bin`
 - `POST /file/{hash}/rollback/{targetVersion}`
 
-### 3. Preview Flow
+### 4. Preview Flow
 
 **Endpoints:**
 
